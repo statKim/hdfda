@@ -1,0 +1,12 @@
+Package: hdfda
+Title: High-Dimensional Functional Data Analysis
+Version: 0.1.0
+Authors@R: 
+    c(person("Hyunsung", "Kim", role = c("aut","cre"), 
+                    email = "hyunsung1021@gmail.com"))
+Maintainer: Hyunsung Kim <hyunsung1021@gmail.com>
+Description: High-Dimensional Functional Data Analysis
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1
