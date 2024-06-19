@@ -177,7 +177,7 @@ hdflda <- function(X, y,
 #' @export
 predict.hdflda <- function(object, newdata, newdata2 = NULL, ...) {
   # Make basis coefficient matrix
-  X_coef_test <- predict.make_basis_mf(object$basis_object, newdata)
+  X_coef_test <- predict.make_basis_mf(object$basis_obj, newdata)
 
   # Scalar covariates
   if (!is.null(newdata2)) {
