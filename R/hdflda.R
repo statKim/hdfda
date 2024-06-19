@@ -177,7 +177,7 @@ hdflda <- function(X, y,
 #' @export
 predict.hdflda <- function(object, newdata, newdata2 = NULL, ...) {
   # Make basis coefficient matrix
-  X_coef_test <- predict.make_basis_mf(object$basis_obj, newdata)
+  X_coef_test <- predict(object$basis_obj, newdata)
 
   # Scalar covariates
   if (!is.null(newdata2)) {
@@ -295,7 +295,7 @@ cv.hdflda <- function(X, y,
                               tol = tol)
 
          # Prediction of validation set
-         pred <- predict.hdflda(fit_hdflda, X_test, X2_test)
+         pred <- predict(fit_hdflda, X_test, X2_test)
 
          # Validation error
          if (measure == "accuracy") {
