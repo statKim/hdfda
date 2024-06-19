@@ -204,11 +204,10 @@ predict.hdflda <- function(object, newdata, newdata2 = NULL, ...) {
   return(pred)
 }
 
-#' K-fold cross-validation for `hdflda` to obtain the optimal n_basis and lambda
+#' K-fold cross-validation for `hdflda`
 #'
+#' Select the optimal `n_basis` and `lambda` for `hdflda` using K-fold cross-validation
 #' Parallel computing can be used by using the `doParallel` package usages.
-#'
-#' Linear discriminant analysis for High-dimensional functional data
 #'
 #' @param X a n-m-p array (p-variate functional data; each functional data consists of n curves observed from m timepoints)
 #' @param y a integer vector containing class label of X (n x 1 vector)
@@ -269,8 +268,7 @@ cv.hdflda <- function(X, y,
   # K-fold CV
   i <- NULL
   loss_list <- foreach::foreach(i = 1:nrow(cand_cv),
-                               .packages=c("CVXR","fda"),
-                               .export=c("make_basis_mf","predict.make_basis_mf","hdflda","predict.hdflda"),
+                               .packages=c("CVXR","fda","hdfda"),
                                .combine = c,
                                .errorhandling = "pass") %dopar% {
      loss_i <- rep(NA, K)

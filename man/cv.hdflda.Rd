@@ -2,7 +2,7 @@
 % Please edit documentation in R/hdflda.R
 \name{cv.hdflda}
 \alias{cv.hdflda}
-\title{K-fold cross-validation for \code{hdflda} to obtain the optimal n_basis and lambda}
+\title{K-fold cross-validation for \code{hdflda}}
 \usage{
 cv.hdflda(
   X,
@@ -42,10 +42,8 @@ cv.hdflda(
 a \code{hdflda} object
 }
 \description{
+Select the optimal \code{n_basis} and \code{lambda} for \code{hdflda} using K-fold cross-validation
 Parallel computing can be used by using the \code{doParallel} package usages.
-}
-\details{
-Linear discriminant analysis for High-dimensional functional data
 }
 \examples{
 \dontrun{
