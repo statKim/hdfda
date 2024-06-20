@@ -47,6 +47,7 @@ Parallel computing can be used by using the \code{doParallel} package usages.
 }
 \examples{
 \dontrun{
+library(doParallel)
 cl <- makePSOCKcluster(detectCores()/2)
 registerDoParallel(cl)
 fit <- cv.hdflda(X_train, y_train)

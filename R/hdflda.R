@@ -160,9 +160,9 @@ hdflda <- function(X, y,
 }
 
 
-#' Predict the class using the LDA for High-dimensional functional data
+#' Predict the class labels using the High-dimensional functional LDA
 #'
-#' Obtain the class prediction using `hdflda` object
+#' Obtain the predicted class labels using `hdflda` object
 #'
 #' @param object a `hdflda` object
 #' @param newdata a n-m-p array (p-variate functional data; each functional data consists of n curves observed from m timepoints)
@@ -224,6 +224,7 @@ predict.hdflda <- function(object, newdata, newdata2 = NULL, ...) {
 #'
 #' @examples
 #' \dontrun{
+#' library(doParallel)
 #' cl <- makePSOCKcluster(detectCores()/2)
 #' registerDoParallel(cl)
 #' fit <- cv.hdflda(X_train, y_train)
@@ -250,9 +251,10 @@ cv.hdflda <- function(X, y,
 
   # Candidates of grid search
   if (is.null(n_basis_list)) {
-    # n_basis_list <- seq(5, round(m/4), 5)
-    # n_basis_list <- seq(4, min(20, round(m/2)), 1)
-    n_basis_list <- c(4:9, seq(10, min(40, round(m/2)), by = 5))
+    n_basis_list <- 4:8
+    # # n_basis_list <- seq(5, round(m/4), 5)
+    # # n_basis_list <- seq(4, min(20, round(m/2)), 1)
+    # n_basis_list <- c(4:9, seq(10, min(40, round(m/2)), by = 5))
   }
   if (is.null(lambda_list)) {
     lambda_list <- seq(1e-3, 0.1, length.out = 10)

@@ -2,7 +2,7 @@
 % Please edit documentation in R/hdflda.R
 \name{predict.hdflda}
 \alias{predict.hdflda}
-\title{Predict the class using the LDA for High-dimensional functional data}
+\title{Predict the class labels using the High-dimensional functional LDA}
 \usage{
 \method{predict}{hdflda}(object, newdata, newdata2 = NULL, ...)
 }
@@ -19,7 +19,7 @@
 a \code{hdflda} object
 }
 \description{
-Obtain the class prediction using \code{hdflda} object
+Obtain the predicted class labels using \code{hdflda} object
 }
 \references{
 Xue, K., Yang, J., & Yao, F. (2023). Optimal linear discriminant analysis for high-dimensional functional data. Journal of the American Statistical Association, 1-10.
