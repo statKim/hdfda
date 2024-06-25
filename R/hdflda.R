@@ -77,37 +77,47 @@ hdflda <- function(X, y,
   # Estimate of nu^(1)
   nu_1 <- mu2 - mu1
 
+  # Using "glmnet"
   # Optimize using equation (13)
-  z <- ifelse(y == 1, pi1, -pi2)
-  X_coef_c <- scale(X_coef, center = T, scale = F)
-  nu <- CVXR::Variable(ncol(X_coef))
-  obj <- CVXR::sum_squares(z - X_coef_c %*% nu) / (2*(n-2)) + lambda*CVXR::p_norm(sqrt(omega) * nu, 1)
-  # lambda_n <- lambda*sqrt(omega)
-  # obj <- sum((z - X_coef_c %*% nu)^2) / (2*(n-2)) + p_norm(lambda_n*nu, 1)
-  prob <- CVXR::Problem(CVXR::Minimize(obj))
-  result <- CVXR::psolve(prob, verbose = F)
+  z <- ifelse(y == 1, pi1, -pi2) * (n / (n-2))
+  X_coef_c <- scale(X_coef, center = T, scale = F) %*% diag(1 / sqrt(omega)) * (n / (n-2))
 
-  if (result$status != "optimal") {
-    warnings("The solution is not optimal!")
-  }
+  glmnet.obj <- glmnet::glmnet(X_coef_c, z, family = "gaussian", lambda = lambda, standardize = F)
+  nu_hat <- as.numeric(glmnet.obj$beta) / sqrt(omega)
+  # sum(nu_hat)
 
-  # Optimal estimate of nu
-  nu_hat <- result$getValue(nu)
-  nu_hat <- as.numeric(nu_hat)
-  nu_hat[nu_hat < tol] <- 0   # thresholding to obtain sparse solution
-  # nu_hat_13 <- nu_hat
-
-  # # Very slow!!
-  # # Optimize using equation (14)
-  # nu <- Variable(ncol(X_coef))
-  # obj <- quad_form(nu, (S + n1*n2/(n*(n-2)) * outer(nu_1, nu_1) )) / 2 - n1*n2/(n*(n-2)) * sum(nu * nu_1) + lambda*p_norm(sqrt(omega) * nu, 1)
-  # prob <- Problem(Minimize(obj))
-  # result <- psolve(prob, verbose = T)
-  # result$status
-  # nu_hat <- result$getValue(nu)
-  # nu_hat_14 <- nu_hat
+  # # Using "CVXR"
+  # # Optimize using equation (13)
+  # z <- ifelse(y == 1, pi1, -pi2)
+  # X_coef_c <- scale(X_coef, center = T, scale = F)
+  # nu <- CVXR::Variable(ncol(X_coef))
+  # obj <- CVXR::sum_squares(z - X_coef_c %*% nu) / (2*(n-2)) + lambda*CVXR::p_norm(sqrt(omega) * nu, 1)
+  # # lambda_n <- lambda*sqrt(omega)
+  # # obj <- sum((z - X_coef_c %*% nu)^2) / (2*(n-2)) + p_norm(lambda_n*nu, 1)
+  # prob <- CVXR::Problem(CVXR::Minimize(obj))
+  # result <- CVXR::psolve(prob, verbose = F)
   #
-  # sum((nu_hat_13 - nu_hat_14)^2)   # similar results
+  # if (result$status != "optimal") {
+  #   warnings("The solution is not optimal!")
+  # }
+  #
+  # # Optimal estimate of nu
+  # nu_hat <- result$getValue(nu)
+  # nu_hat <- as.numeric(nu_hat)
+  # nu_hat[nu_hat < tol] <- 0   # thresholding to obtain sparse solution
+  # # nu_hat_13 <- nu_hat
+  #
+  # # # Very slow!!
+  # # # Optimize using equation (14)
+  # # nu <- Variable(ncol(X_coef))
+  # # obj <- quad_form(nu, (S + n1*n2/(n*(n-2)) * outer(nu_1, nu_1) )) / 2 - n1*n2/(n*(n-2)) * sum(nu * nu_1) + lambda*p_norm(sqrt(omega) * nu, 1)
+  # # prob <- Problem(Minimize(obj))
+  # # result <- psolve(prob, verbose = T)
+  # # result$status
+  # # nu_hat <- result$getValue(nu)
+  # # nu_hat_14 <- nu_hat
+  # #
+  # # sum((nu_hat_13 - nu_hat_14)^2)   # similar results
 
   # Obtain the discrimination vector and discrimination threshold
   # L2 norm of the functional covariates
@@ -120,7 +130,7 @@ hdflda <- function(X, y,
     nu_hat_l2norm <- c(nu_hat_l2norm,
                        abs(nu_hat[(ncol(X_coef) - ncol(X2) + 1):ncol(X_coef)]))
   }
-  ### 여기 scalar covariate은 0 안되게 수정해야함!!!
+  # Sparse discriminant set
   discrim_set_idx <- which(nu_hat_l2norm > 0)
   if (length(discrim_set_idx) == 0) {
     stop("All zero coefficients are obtained!")
@@ -270,9 +280,10 @@ cv.hdflda <- function(X, y,
   # K-fold CV
   i <- NULL
   loss_list <- foreach::foreach(i = 1:nrow(cand_cv),
-                               .packages=c("CVXR","fda","hdfda"),
-                               .combine = c,
-                               .errorhandling = "pass") %dopar% {
+                                .packages=c("glmnet","fda","hdfda"),
+                                # .packages=c("CVXR","fda","hdfda"),
+                                .combine = c,
+                                .errorhandling = "pass") %dopar% {
      loss_i <- rep(NA, K)
      n_basis <- cand_cv[i, 1]
      lambda <- cand_cv[i, 2]

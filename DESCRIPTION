@@ -15,9 +15,9 @@ LinkingTo:
     Rcpp,
     RcppEigen
 Imports: 
-    CVXR,
     fda,
     foreach,
+    glmnet,
     pracma,
     Rcpp,
     RcppEigen
