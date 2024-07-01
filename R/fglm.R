@@ -1,6 +1,6 @@
 #' Functional generalized linear model (FGLM)
 #'
-#' Scalar on function generalized linear model
+#' Scalar on function generalized linear model (It is recommended for the number of functional variables p < 5.)
 #'
 #' @param X a n-m-p array (p-variate functional data; each functional data consists of n curves observed from m timepoints)
 #' @param y a integer vector containing class label of X (n x 1 vector)
@@ -22,7 +22,6 @@ fglm <- function(X, y,
                  FVE = 0.90,
                  K = NULL,
                  n_basis = 20) {
-
   # Basis representation for each functional covariate
   n_knots <- n_basis - 2   # cubic B-spline
   basis_obj <- make_basis_mf(X, grid = grid,

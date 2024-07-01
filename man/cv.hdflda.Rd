@@ -30,7 +30,7 @@ cv.hdflda(
 
 \item{n_basis_list}{a vector containing the candidate of \code{n_basis} (the number of cubic B-spline bases using \code{n_basis}-2 knots)}
 
-\item{lambda_list}{a vector containing the candidate of \code{lambda} (a penalty parameter for l1-norm)}
+\item{lambda_list}{a vector containing the candidate of \code{lambda} (a penalty parameter for L1-regularization)}
 
 \item{measure}{the loss function for the cross-validation. "accuracy" or "cross.entropy" (Default is "accuracy")}
 

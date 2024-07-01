@@ -20,4 +20,5 @@ Imports:
     glmnet,
     pracma,
     Rcpp,
-    RcppEigen
+    RcppEigen,
+    sparsegl

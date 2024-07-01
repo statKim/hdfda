@@ -2,7 +2,7 @@
 % Please edit documentation in R/hdflda.R
 \name{predict.hdflda}
 \alias{predict.hdflda}
-\title{Predict the class labels using the High-dimensional functional LDA}
+\title{Predict the class labels using the high-dimensional functional LDA}
 \usage{
 \method{predict}{hdflda}(object, newdata, newdata2 = NULL, ...)
 }

@@ -1,6 +1,6 @@
-#' LDA for High-dimensional functional data
+#' LDA for high-dimensional functional data
 #'
-#' Linear discriminant analysis for High-dimensional functional data
+#' Linear discriminant analysis for high-dimensional functional data
 #'
 #' @param X a n-m-p array (p-variate functional data; each functional data consists of n curves observed from m timepoints)
 #' @param X2 a n-q matrix (q-variate multivariate data)
@@ -8,7 +8,7 @@
 #' @param grid a vector containing m timepoints
 #' @param basis "bspline" is only supported
 #' @param n_basis the number of cubic B-spline bases using `n_basis`-2 knots
-#' @param lambda a penalty parameter for l1-norm
+#' @param lambda a penalty parameter for L1-regularization
 #' @param tol a tolerance rate to define the sparse discriminant set
 #'
 #' @return a `hdflda` object
@@ -170,7 +170,7 @@ hdflda <- function(X, y,
 }
 
 
-#' Predict the class labels using the High-dimensional functional LDA
+#' Predict the class labels using the high-dimensional functional LDA
 #'
 #' Obtain the predicted class labels using `hdflda` object
 #'
@@ -225,7 +225,7 @@ predict.hdflda <- function(object, newdata, newdata2 = NULL, ...) {
 #' @param grid a vector containing m timepoints
 #' @param basis "bspline" is only supported
 #' @param n_basis_list a vector containing the candidate of `n_basis` (the number of cubic B-spline bases using `n_basis`-2 knots)
-#' @param lambda_list a vector containing the candidate of `lambda` (a penalty parameter for l1-norm)
+#' @param lambda_list a vector containing the candidate of `lambda` (a penalty parameter for L1-regularization)
 #' @param measure the loss function for the cross-validation. "accuracy" or "cross.entropy" (Default is "accuracy")
 #' @param tol a tolerance rate to define the sparse discriminant set
 #' @param K the nuber of folds for K-fold CV

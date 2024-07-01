@@ -2,7 +2,7 @@
 % Please edit documentation in R/hdflda.R
 \name{hdflda}
 \alias{hdflda}
-\title{LDA for High-dimensional functional data}
+\title{LDA for high-dimensional functional data}
 \usage{
 hdflda(
   X,
@@ -28,7 +28,7 @@ hdflda(
 
 \item{n_basis}{the number of cubic B-spline bases using \code{n_basis}-2 knots}
 
-\item{lambda}{a penalty parameter for l1-norm}
+\item{lambda}{a penalty parameter for L1-regularization}
 
 \item{tol}{a tolerance rate to define the sparse discriminant set}
 }
@@ -36,7 +36,7 @@ hdflda(
 a \code{hdflda} object
 }
 \description{
-Linear discriminant analysis for High-dimensional functional data
+Linear discriminant analysis for high-dimensional functional data
 }
 \references{
 Xue, K., Yang, J., & Yao, F. (2023). Optimal linear discriminant analysis for high-dimensional functional data. Journal of the American Statistical Association, 1-10.
