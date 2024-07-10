@@ -28,7 +28,7 @@ flasso(
 
 \item{basis}{"fpca" (FPCA) or "bspline" (B-spline). Default is "bspline".}
 
-\item{lambda}{a penalty parameter for group lasso. Default is 0.1.}
+\item{lambda}{a penalty parameter for group lasso. Default is 0.1. If it is \code{NULL} or the vector containing the candidates of \code{lambda}, cross-validation is performed.}
 
 \item{alpha}{a relative weight for L1-regularization (1-alpha for L2-regularization). Default is 0.05.}
 
@@ -36,7 +36,7 @@ flasso(
 
 \item{K}{the number of FPCs}
 
-\item{n_basis}{the number of cubic B-spline bases using \code{n_basis}-2 knots}
+\item{n_basis}{the number of cubic B-spline bases using \code{n_basis}-2 knots. If it is \code{NULL} or the vector containing the candidates of \code{n_basis}, cross-validation is performed.}
 }
 \value{
 a \code{flasso} object
