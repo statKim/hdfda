@@ -7,10 +7,9 @@
 hdflda(
   X,
   y,
-  X2 = NULL,
   grid = NULL,
   basis = "bspline",
-  n_basis = 20,
+  n_basis = 4,
   lambda = 0.1,
   tol = 1e-07
 )
@@ -19,8 +18,6 @@ hdflda(
 \item{X}{a n-m-p array (p-variate functional data; each functional data consists of n curves observed from m timepoints)}
 
 \item{y}{a integer vector containing class label of X (n x 1 vector)}
-
-\item{X2}{a n-q matrix (q-variate multivariate data)}
 
 \item{grid}{a vector containing m timepoints}
 

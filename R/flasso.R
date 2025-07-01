@@ -36,12 +36,13 @@ flasso <- function(X, y,
     min_cv_error <- rep(NA, length(n_basis_list))
     for (i in 1:length(n_basis_list)) {
       # Basis representation for each functional covariate
-      n_knots <- n_basis_list[i] - 2   # cubic B-spline
-      basis_obj <- make_basis_mf(X, grid = grid,
-                                 basis = basis,
-                                 FVE = FVE,
-                                 K = K,
-                                 n_knots = n_knots)
+      n_basis <- n_basis_list[i]
+      basis_obj <- basis_mfd(X,
+                             grid = grid,
+                             basis = basis,
+                             FVE = FVE,
+                             K = K,
+                             n_basis = n_basis)
       X_coef <- basis_obj$X_coef
 
       # Observed grid points
@@ -79,12 +80,12 @@ flasso <- function(X, y,
     # Fit fglm given n_basis (Does not perform cross-validation for n_basis)
 
     # Basis representation for each functional covariate
-    n_knots <- n_basis - 2   # cubic B-spline
-    basis_obj <- make_basis_mf(X, grid = grid,
-                               basis = basis,
-                               FVE = FVE,
-                               K = K,
-                               n_knots = n_knots)
+    basis_obj <- basis_mfd(X,
+                           grid = grid,
+                           basis = basis,
+                           FVE = FVE,
+                           K = K,
+                           n_basis = n_basis)
     X_coef <- basis_obj$X_coef
 
     # Observed grid points
@@ -145,7 +146,6 @@ flasso <- function(X, y,
       basis = basis,
       # basis_ftn = basis_ftn,
       grid = grid,
-      n_knots = n_knots,
       n_basis = basis_obj$n_basis,
       lambda = lambda,
       groups = groups,
@@ -186,7 +186,7 @@ flasso <- function(X, y,
 #' @export
 predict.flasso <- function(object, newdata, threshold = 0.5, ...) {
   # Make basis coefficient matrix
-  X_coef <- predict.make_basis_mf(object$basis_obj, newdata)
+  X_coef <- predict.basis_mfd(object$basis_obj, newdata)
 
   cv_fit <- object$model.obj
 

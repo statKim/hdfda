@@ -4,14 +4,12 @@
 \alias{predict.hdflda}
 \title{Predict the class labels using the high-dimensional functional LDA}
 \usage{
-\method{predict}{hdflda}(object, newdata, newdata2 = NULL, ...)
+\method{predict}{hdflda}(object, newdata, ...)
 }
 \arguments{
 \item{object}{a \code{hdflda} object}
 
 \item{newdata}{a n-m-p array (p-variate functional data; each functional data consists of n curves observed from m timepoints)}
-
-\item{newdata2}{a n-q matrix (q-variate multivariate data)}
 
 \item{...}{Not used}
 }

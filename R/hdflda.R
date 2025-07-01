@@ -3,7 +3,6 @@
 #' Linear discriminant analysis for high-dimensional functional data
 #'
 #' @param X a n-m-p array (p-variate functional data; each functional data consists of n curves observed from m timepoints)
-#' @param X2 a n-q matrix (q-variate multivariate data)
 #' @param y a integer vector containing class label of X (n x 1 vector)
 #' @param grid a vector containing m timepoints
 #' @param basis "bspline" is only supported
@@ -18,10 +17,9 @@
 #' @importFrom stats cov
 #' @export
 hdflda <- function(X, y,
-                   X2 = NULL,
                    grid = NULL,
                    basis = "bspline",
-                   n_basis = 20,
+                   n_basis = 4,
                    lambda = 0.1,
                    tol = 1e-7) {
   n <- dim(X)[1]   # number of curves
@@ -29,13 +27,13 @@ hdflda <- function(X, y,
   p <- dim(X)[3]   # number of variables
 
   # Basis representation for each functional covariate
-  n_knots <- n_basis - 2   # cubic B-spline
-  basis_obj <- make_basis_mf(X, grid = grid,
-                             basis = basis,
-                             # FVE = FVE,
-                             # K = K,
-                             n_knots = n_knots,
-                             gram = TRUE)
+  basis_obj <- basis_mfd(X,
+                         grid = grid,
+                         basis = basis,
+                         # FVE = FVE,
+                         # K = K,
+                         n_basis = n_basis,
+                         gram = TRUE)
   X_coef <- basis_obj$X_coef
 
   # Observed grid points
@@ -43,12 +41,6 @@ hdflda <- function(X, y,
 
   # Group indicator for each functional covariate
   groups <- basis_obj$groups
-
-  # Scalar covariates
-  if (!is.null(X2)) {
-    X_coef <- cbind(X_coef, as.matrix(X2))
-    groups <- c(groups, max(groups):(max(groups) + ncol(X2) -1))
-  }
 
   # Index set
   idx_g1 <- which(y == 0)
@@ -82,7 +74,13 @@ hdflda <- function(X, y,
   z <- ifelse(y == 1, pi1, -pi2) * (n / (n-2))
   X_coef_c <- scale(X_coef, center = T, scale = F) %*% diag(1 / sqrt(omega)) * (n / (n-2))
 
-  glmnet.obj <- glmnet::glmnet(X_coef_c, z, family = "gaussian", lambda = lambda, standardize = F)
+  glmnet.obj <- glmnet::glmnet(X_coef_c,
+                               z,
+                               family = "gaussian",
+                               alpha = 1,
+                               lambda = lambda,
+                               standardize = F,
+                               intercept = F)
   nu_hat <- as.numeric(glmnet.obj$beta) / sqrt(omega)
   # sum(nu_hat)
 
@@ -125,29 +123,27 @@ hdflda <- function(X, y,
     idx <- which(groups == j)
     sqrt(sum(nu_hat[idx]^2))
   })
-  # L2 norm of the scalar covariates (absolute value)
-  if (!is.null(X2)) {
-    nu_hat_l2norm <- c(nu_hat_l2norm,
-                       abs(nu_hat[(ncol(X_coef) - ncol(X2) + 1):ncol(X_coef)]))
-  }
   # Sparse discriminant set
   discrim_set_idx <- which(nu_hat_l2norm > 0)
   if (length(discrim_set_idx) == 0) {
-    stop("All zero coefficients are obtained!")
+    # stop("All zero coefficients are obtained!")
+    threshold <- 0
+    idx <- 1:length(nu_hat)
   }
   idx <- which(groups %in% discrim_set_idx)
-  nu_hat[-idx] <- 0   # sparse solution
-  threshold <- as.numeric( (t(nu_hat[idx]) %*% S[idx, idx] %*% nu_hat[idx]) * 1/(t(nu_hat[idx]) %*% nu_1[idx]) * log(n1/n2) )
+  # nu_hat[-idx] <- 0   # sparse solution
+  threshold <- as.numeric( (t(nu_hat[idx]) %*% S[idx, idx] %*% nu_hat[idx]) / (t(nu_hat[idx]) %*% nu_1[idx]) * log(n1/n2) )
 
   # Obtain training error
   X_coef_c2 <- apply(X_coef[, idx], 1, function(row){ row - (mu1[idx] + mu2[idx])/2 })
   X_coef_c2 <- t(X_coef_c2)
-  pred <- as.integer(ifelse(X_coef_c2 %*% nu_hat[idx] / 2 > threshold, 1, 0))
+  pred <- as.integer(ifelse(X_coef_c2 %*% nu_hat[idx] > threshold, 1, 0))
   err_train <- mean(y != pred)   # training error
 
   # Output object
   res <- list(
     nu_hat = nu_hat,   # sparse discriminant solution
+    discrim_set = discrim_set_idx,   # selected discriminant set
     # idx = idx,         # indices of zero coefficients of nu_hat
     threshold = threshold,   # threshold of discrimination rule
     estimates = list(   # prior estimates
@@ -176,7 +172,6 @@ hdflda <- function(X, y,
 #'
 #' @param object a `hdflda` object
 #' @param newdata a n-m-p array (p-variate functional data; each functional data consists of n curves observed from m timepoints)
-#' @param newdata2 a n-q matrix (q-variate multivariate data)
 #' @param ... Not used
 #'
 #' @return a `hdflda` object
@@ -185,14 +180,9 @@ hdflda <- function(X, y,
 #'
 #' @importFrom stats predict
 #' @export
-predict.hdflda <- function(object, newdata, newdata2 = NULL, ...) {
+predict.hdflda <- function(object, newdata, ...) {
   # Make basis coefficient matrix
   X_coef_test <- predict(object$basis_obj, newdata)
-
-  # Scalar covariates
-  if (!is.null(newdata2)) {
-    X_coef_test <- cbind(X_coef_test, as.matrix(newdata2))
-  }
 
   # Fitted solutions
   nu_hat <- object$nu_hat
@@ -209,7 +199,7 @@ predict.hdflda <- function(object, newdata, newdata2 = NULL, ...) {
     X_coef_test_c2 <- apply(X_coef_test[, idx], 1, function(row){ row - (object$estimates$mu1[idx] + object$estimates$mu2[idx])/2 })
     X_coef_test_c2 <- t(X_coef_test_c2)
   }
-  pred <- as.integer(ifelse(X_coef_test_c2 %*% nu_hat[idx] / 2 > threshold, 1, 0))
+  pred <- as.integer(ifelse(X_coef_test_c2 %*% nu_hat[idx] > threshold, 1, 0))
 
   return(pred)
 }
@@ -221,7 +211,6 @@ predict.hdflda <- function(object, newdata, newdata2 = NULL, ...) {
 #'
 #' @param X a n-m-p array (p-variate functional data; each functional data consists of n curves observed from m timepoints)
 #' @param y a integer vector containing class label of X (n x 1 vector)
-#' @param X2 a n-q matrix (q-variate multivariate data)
 #' @param grid a vector containing m timepoints
 #' @param basis "bspline" is only supported
 #' @param n_basis_list a vector containing the candidate of `n_basis` (the number of cubic B-spline bases using `n_basis`-2 knots)
@@ -245,8 +234,8 @@ predict.hdflda <- function(object, newdata, newdata2 = NULL, ...) {
 #'
 #' @importFrom foreach %dopar% foreach
 #' @export
-cv.hdflda <- function(X, y,
-                      X2 = NULL,
+cv.hdflda <- function(X,
+                      y,
                       grid = NULL,
                       basis = "bspline",
                       n_basis_list = NULL,
@@ -294,13 +283,9 @@ cv.hdflda <- function(X, y,
        y_train <- y[fold_list != j]
        y_test <- y[fold_list == j]
 
-       X2_train <- X2[fold_list != j, ]
-       X2_test <- X2[fold_list == j, ]
-
        tryCatch({
          # Fit hdflda
          fit_hdflda <- hdflda(X_train, y_train,
-                              X2 = X2_train,
                               grid = grid,
                               basis = basis,
                               n_basis = n_basis,
@@ -308,7 +293,7 @@ cv.hdflda <- function(X, y,
                               tol = tol)
 
          # Prediction of validation set
-         pred <- predict(fit_hdflda, X_test, X2_test)
+         pred <- predict(fit_hdflda, X_test)
 
          # Validation error
          if (measure == "accuracy") {
@@ -343,7 +328,6 @@ cv.hdflda <- function(X, y,
 
   # Fit hdflda using the optimal parameters
   fit <- hdflda(X, y,
-                X2 = X2,
                 grid = grid,
                 basis = basis,
                 n_basis = n_basis,

@@ -7,18 +7,21 @@
 #' @param basis a choice of the basis. "fpca" (FPCA) or "bspline" (B-spline) is supported.
 #' @param FVE Fraction of variance explained (Default is 0.90)
 #' @param K the number of FPCs (Default is selected by FVE)
-#' @param n_knots the number of knots for the cubic B-spline basis expansion
-#' @param gram If TRUE, Gram-Schmidt orthogonalization is performed for the estimated basis coefficients. (Default is FALSE)
+#' @param n_basis the number of basis for the B-spline basis expansion
+#' @param n_order the order of B-spline basis functions. Default is 4 (cubic B-spline)
+#' @param gram If TRUE, Gram-Schmidt orthogonalization is performed for the estimated basis coefficients. (Default is TRUE)
 #'
-#' @return a `make_basis_mf` object
+#' @return a `basis_mfd` object
 #'
 #' @export
-make_basis_mf <- function(X, grid = NULL,
-                          basis = "fpca",
-                          FVE = 0.90,
-                          K = NULL,
-                          n_knots = 20,
-                          gram = F) {
+basis_mfd <- function(X,
+                      grid = NULL,
+                      basis = "fpca",
+                      FVE = 0.90,
+                      K = NULL,
+                      n_basis = 4,
+                      n_order = 4,
+                      gram = TRUE) {
   n <- dim(X)[1]   # number of curves
   m <- dim(X)[2]   # number of timepoints
   d <- dim(X)[3]   # number of variables
@@ -56,19 +59,26 @@ make_basis_mf <- function(X, grid = NULL,
     # }
     # n_knots <- knots_list[which.min(sse_list)]
 
-    knots <- seq(0, 1, length.out = n_knots)   # Location of knots
-    n_order <- 4   # order of basis functions: cubic bspline: order = 3 + 1
-    n_basis <- length(knots) + n_order - 2
+    # knots <- seq(0, 1, length.out = n_knots)   # Location of knots
+    # n_order <- 4   # order of basis functions: cubic bspline: order = 3 + 1
+    # n_basis <- length(knots) + n_order - 2
+    # basis_ftn <- fda::create.bspline.basis(rangeval = c(0, 1),
+    #                                        nbasis = n_basis,
+    #                                        norder = n_order,
+    #                                        breaks = knots)
     basis_ftn <- fda::create.bspline.basis(rangeval = c(0, 1),
                                            nbasis = n_basis,
-                                           norder = n_order,
-                                           breaks = knots)
+                                           norder = n_order)
     if (isTRUE(gram)) {
       # Make orthogonal B-spline basis
       phi <- fda::eval.basis(grid, basis_ftn)
-      phi <- pracma::gramSchmidt(phi)$Q
+      An <- pracma::gramSchmidt(phi)$R
       M <- solve(t(phi) %*% phi, t(phi))
-      M_J <- t(M)
+      M_J <- t(M) %*% An
+      # phi <- fda::eval.basis(grid, basis_ftn)
+      # phi <- pracma::gramSchmidt(phi)$Q
+      # M <- solve(t(phi) %*% phi, t(phi))
+      # M_J <- t(M)
     } else {
       # Non-orthogonal B-spline basis
       phi <- fda::eval.basis(grid, basis_ftn)
@@ -119,7 +129,6 @@ make_basis_mf <- function(X, grid = NULL,
       basis_ftn = basis_ftn,
       gram = gram,
       grid = grid,
-      n_knots = n_knots,
       n_basis = n_basis,
       X_coef = X_coef,
       groups = groups
@@ -135,7 +144,7 @@ make_basis_mf <- function(X, grid = NULL,
     )
   }
 
-  class(res) <- "make_basis_mf"
+  class(res) <- "basis_mfd"
 
   return(res)
 }
@@ -145,14 +154,14 @@ make_basis_mf <- function(X, grid = NULL,
 #'
 #' Predict the basis coefficient matrix from new multivariate functional data
 #'
-#' @param object a `make_basis_mf` object
+#' @param object a `basis_mfd` object
 #' @param newdata a n-m-p array (p-variate functional data; each functional data consists of n curves observed from m timepoints)
 #' @param ... Not used
 #'
 #' @return a basis coefficient matrix (n-(K_1 + ... + K_p) matrix)
 #'
 #' @export
-predict.make_basis_mf <- function(object, newdata, ...) {
+predict.basis_mfd <- function(object, newdata, ...) {
   n <- dim(newdata)[1]   # number of curves
   m <- dim(newdata)[2]   # number of timepoints
   d <- dim(newdata)[3]   # number of variables
@@ -167,9 +176,13 @@ predict.make_basis_mf <- function(object, newdata, ...) {
     if (isTRUE(object$gram)) {
       # Make orthogonal B-spline basis
       phi <- fda::eval.basis(grid, basis_ftn)
-      phi <- pracma::gramSchmidt(phi)$Q
+      An <- pracma::gramSchmidt(phi)$R
       M <- solve(t(phi) %*% phi, t(phi))
-      M_J <- t(M)
+      M_J <- t(M) %*% An
+      # phi <- fda::eval.basis(grid, basis_ftn)
+      # phi <- pracma::gramSchmidt(phi)$Q
+      # M <- solve(t(phi) %*% phi, t(phi))
+      # M_J <- t(M)
     } else {
       # Non-orthogonal B-spline basis
       phi <- fda::eval.basis(grid, basis_ftn)

@@ -23,12 +23,12 @@ fglm <- function(X, y,
                  K = NULL,
                  n_basis = 20) {
   # Basis representation for each functional covariate
-  n_knots <- n_basis - 2   # cubic B-spline
-  basis_obj <- make_basis_mf(X, grid = grid,
-                             basis = basis,
-                             FVE = FVE,
-                             K = K,
-                             n_knots = n_knots)
+  basis_obj <- basis_mfd(X,
+                         grid = grid,
+                         basis = basis,
+                         FVE = FVE,
+                         K = K,
+                         n_basis = n_basis)
   X_coef <- basis_obj$X_coef
 
   # Observed grid points
@@ -51,7 +51,6 @@ fglm <- function(X, y,
       basis = basis,
       # basis_ftn = basis_ftn,
       grid = grid,
-      n_knots = n_knots,
       n_basis = basis_obj$n_basis,
       # X_names = X_names,
       basis_obj = basis_obj,
@@ -90,7 +89,7 @@ fglm <- function(X, y,
 #' @export
 predict.fglm <- function(object, newdata, threshold = 0.5, ...) {
   # Make basis coefficient matrix
-  X_coef <- predict.make_basis_mf(object$basis_obj, newdata)
+  X_coef <- predict.basis_mfd(object$basis_obj, newdata)
   df <- data.frame(X_coef)
   # colnames(df) <- object$X_names
 
