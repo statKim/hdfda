@@ -4,7 +4,7 @@
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of hdfda is to ...
+The R package `hdfda` contains some functions of the inference for high-dimensional functional data.
 
 ## Installation
 

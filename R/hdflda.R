@@ -129,10 +129,11 @@ hdflda <- function(X, y,
     # stop("All zero coefficients are obtained!")
     threshold <- 0
     idx <- 1:length(nu_hat)
+  } else {
+    idx <- which(groups %in% discrim_set_idx)
+    # nu_hat[-idx] <- 0   # sparse solution
+    threshold <- as.numeric( (t(nu_hat[idx]) %*% S[idx, idx] %*% nu_hat[idx]) / (t(nu_hat[idx]) %*% nu_1[idx]) * log(n1/n2) )
   }
-  idx <- which(groups %in% discrim_set_idx)
-  # nu_hat[-idx] <- 0   # sparse solution
-  threshold <- as.numeric( (t(nu_hat[idx]) %*% S[idx, idx] %*% nu_hat[idx]) / (t(nu_hat[idx]) %*% nu_1[idx]) * log(n1/n2) )
 
   # Obtain training error
   X_coef_c2 <- apply(X_coef[, idx], 1, function(row){ row - (mu1[idx] + mu2[idx])/2 })
