@@ -69,10 +69,9 @@ hdflda <- function(X, y,
   # Estimate of nu^(1)
   nu_1 <- mu2 - mu1
 
-  # Using "glmnet"
-  # Optimize using equation (13)
-  z <- ifelse(y == 1, pi1, -pi2) * (n / (n-2))
-  X_coef_c <- scale(X_coef, center = T, scale = F) %*% diag(1 / sqrt(omega)) * (n / (n-2))
+  # Optimize using equation (13) using "glmnet"
+  z <- ifelse(y == 1, pi1, -pi2) * sqrt(n / (n-2))
+  X_coef_c <- scale(X_coef, center = T, scale = F) %*% diag(1 / sqrt(omega)) * sqrt(n / (n-2))
 
   glmnet.obj <- glmnet::glmnet(X_coef_c,
                                z,
@@ -84,8 +83,7 @@ hdflda <- function(X, y,
   nu_hat <- as.numeric(glmnet.obj$beta) / sqrt(omega)
   # sum(nu_hat)
 
-  # # Using "CVXR"
-  # # Optimize using equation (13)
+  # # Optimize using equation (13) using "CVXR"
   # z <- ifelse(y == 1, pi1, -pi2)
   # X_coef_c <- scale(X_coef, center = T, scale = F)
   # nu <- CVXR::Variable(ncol(X_coef))
