@@ -16,7 +16,7 @@
 #'
 #' @importFrom stats cov
 #' @export
-hdflr <- function(X, 
+hdflr <- function(X,
                   y,
                   grid = NULL,
                   penalty = "gr_scad",
@@ -45,7 +45,7 @@ hdflr <- function(X,
   # Group indicator for each functional covariate
   groups <- basis_obj$groups
 
-  # Check whether response is continuous or binary 
+  # Check whether response is continuous or binary
   if (type == "regress") {
     # Centering response
     mean_y <- mean(y)
@@ -57,17 +57,17 @@ hdflr <- function(X,
     n1 <- length(idx_g1)
     n2 <- length(idx_g2)
     n <- nrow(X_coef)
-    
+
     # Prior probability
     pi1 <- n1 / n
     pi2 <- 1 - pi1
-    
+
     z <- ifelse(y == 1, pi1, -pi2)
   }
- 
+
   # Centering the basis coefficient matrix
   X_coef_c <- scale(X_coef, center = T, scale = F)
-  
+
   # Optimize the coeffient eta_hat using coordinate descent algorithm
   fit_obj <- group_scad_flr_cpp(z,
                                 X_coef_c,
@@ -76,18 +76,18 @@ hdflr <- function(X,
                                 lambda,
                                 a = 3.7,
                                 max_iter = 100,
-                                tol = tol) 
+                                tol = tol)
   eta_hat <- as.numeric(fit_obj$eta_hat)
   iter <- fit_obj$iterations
-  
+
   # Active set from the spasrse solution
   active_set <- which(apply(fit_obj$eta_hat, 2, function(x){ sum(abs(x)) }) > 0)
-  
+
 
   if (type == "regress") {
     pred <- mean_y + as.numeric(X_coef_c %*% matrix(eta_hat, ncol = 1))
     err_train <- mean((z - pred)^2)   # training MSE
-    
+
     threshold <- NULL
     estimates <- list(
       mean_y = mean_y,
@@ -119,9 +119,9 @@ hdflr <- function(X,
     X_coef_c2 <- t(X_coef_c2)
     pred <- as.integer(ifelse(X_coef_c2 %*% eta_hat[idx] > threshold, 1, 0))
     err_train <- mean(y != pred)   # training error
-    
+
     # prior estimates
-    estimates <- list(   
+    estimates <- list(
       mu = mu,
       mu1 = mu1,
       mu2 = mu2,
@@ -129,7 +129,7 @@ hdflr <- function(X,
       pi2 = pi2
     )
   }
-  
+
   # Output object
   res <- list(
     eta_hat = eta_hat,   # sparse solution
@@ -171,20 +171,20 @@ predict.hdflr <- function(object, newdata, ...) {
   # Estimated sparse solutions
   eta_hat <- object$eta_hat
   # Non-zero indices of active coefficient vector
-  idx <- which(eta_hat > 0)
-  
+  idx <- which(abs(eta_hat) > 1e-8)
+
   # Prediction
   if (object$type == "regress") {
     X_coef_test_c2 <- apply(X_coef_test[, idx, drop=FALSE], 1, function(row){ row - object$estimates$mean_x[idx] })
     X_coef_test_c2 <- t(X_coef_test_c2)
     pred <- as.numeric(X_coef_test_c2 %*% eta_hat[idx]) + object$estimates$mean_y
-    
+
   } else if (object$type == "classif") {
     X_coef_test_c2 <- apply(X_coef_test[, idx, drop=FALSE], 1, function(row){ row - (object$estimates$mu1[idx] + object$estimates$mu2[idx])/2 })
     X_coef_test_c2 <- t(X_coef_test_c2)
     pred <- as.integer(ifelse(X_coef_test_c2 %*% eta_hat[idx] > object$threshold, 1, 0))
   }
-  
+
   return(pred)
 }
 
@@ -256,7 +256,7 @@ cv.hdflr <- function(X,
 
        tryCatch({
          # Fit hdflr
-         fit_obj <- hdflr(X_train, 
+         fit_obj <- hdflr(X_train,
                           y_train,
                           grid = grid,
                           penalty = penalty,
@@ -306,7 +306,7 @@ cv.hdflr <- function(X,
   cand_cv$cv_error <- loss_list
 
   # Fit hdflr using the optimal parameters
-  fit <- hdflr(X, 
+  fit <- hdflr(X,
                y,
                grid = grid,
                penalty = penalty,
@@ -315,7 +315,7 @@ cv.hdflr <- function(X,
                n_basis = n_basis,
                lambda = lambda,
                tol = tol)
-  
+
   res <- list(
     opt_fit = fit,
     opt_params = c(n_basis = n_basis,

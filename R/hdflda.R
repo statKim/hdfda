@@ -188,7 +188,7 @@ predict.hdflda <- function(object, newdata, ...) {
   threshold <- object$threshold
 
   # Non-zero indices of discriminant vector
-  idx <- which(nu_hat > 0)
+  idx <- which(abs(nu_hat) > 1e-8)
 
   # Prediction
   if (length(idx) == 1) {
