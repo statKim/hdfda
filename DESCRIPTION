@@ -5,8 +5,8 @@ Authors@R:
     c(person("Hyunsung", "Kim", role = c("aut","cre"), 
                     email = "hyunsung1021@gmail.com"))
 Maintainer: Hyunsung Kim <hyunsung1021@gmail.com>
-Description: This is the R-package for high-dimensional or multivariate functional data analysis.
-  It includes the functional regression and classification with sparsity penalty and the variable selection controlling FDR (False discovery rate).
+Description: This is the R-package for high-dimensional functional data analysis.
+  It includes the functional regression and classification with sparsity penalty and the statistical inferences.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

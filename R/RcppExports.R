@@ -9,6 +9,10 @@ get_fpc_scores <- function(X, phi, work_grid) {
     .Call(`_hdfda_get_fpc_scores`, X, phi, work_grid)
 }
 
+group_scad_flr_cpp <- function(Y, Theta, p, s, lambda, a = 3.7, max_iter = 100L, tol = 1e-6) {
+    .Call(`_hdfda_group_scad_flr_cpp`, Y, Theta, p, s, lambda, a, max_iter, tol)
+}
+
 #' Trapezoid Rule Numerical Integration
 #' 
 #' Trapezoid Rule Numerical Integration using Rcpp

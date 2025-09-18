@@ -36,6 +36,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// group_scad_flr_cpp
+Rcpp::List group_scad_flr_cpp(const Eigen::Map<Eigen::VectorXd> Y, const Eigen::Map<Eigen::MatrixXd> Theta, int p, int s, const double lambda, const double a, const int max_iter, const double tol);
+RcppExport SEXP _hdfda_group_scad_flr_cpp(SEXP YSEXP, SEXP ThetaSEXP, SEXP pSEXP, SEXP sSEXP, SEXP lambdaSEXP, SEXP aSEXP, SEXP max_iterSEXP, SEXP tolSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::Map<Eigen::VectorXd> >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< const Eigen::Map<Eigen::MatrixXd> >::type Theta(ThetaSEXP);
+    Rcpp::traits::input_parameter< int >::type p(pSEXP);
+    Rcpp::traits::input_parameter< int >::type s(sSEXP);
+    Rcpp::traits::input_parameter< const double >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< const double >::type a(aSEXP);
+    Rcpp::traits::input_parameter< const int >::type max_iter(max_iterSEXP);
+    Rcpp::traits::input_parameter< const double >::type tol(tolSEXP);
+    rcpp_result_gen = Rcpp::wrap(group_scad_flr_cpp(Y, Theta, p, s, lambda, a, max_iter, tol));
+    return rcpp_result_gen;
+END_RCPP
+}
 // trapzRcpp
 double trapzRcpp(const Rcpp::NumericVector X, const Rcpp::NumericVector Y);
 RcppExport SEXP _hdfda_trapzRcpp(SEXP XSEXP, SEXP YSEXP) {
@@ -52,6 +70,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_hdfda_normalize_phi", (DL_FUNC) &_hdfda_normalize_phi, 2},
     {"_hdfda_get_fpc_scores", (DL_FUNC) &_hdfda_get_fpc_scores, 3},
+    {"_hdfda_group_scad_flr_cpp", (DL_FUNC) &_hdfda_group_scad_flr_cpp, 8},
     {"_hdfda_trapzRcpp", (DL_FUNC) &_hdfda_trapzRcpp, 2},
     {NULL, NULL, 0}
 };
