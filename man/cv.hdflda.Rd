@@ -13,7 +13,7 @@ cv.hdflda(
   lambda_list = NULL,
   measure = "accuracy",
   tol = 1e-07,
-  K = 10
+  K = 5
 )
 }
 \arguments{

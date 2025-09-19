@@ -10,7 +10,9 @@
 #' @param basis "bspline" is only supported
 #' @param n_basis the number of cubic B-spline bases using `n_basis`-2 knots
 #' @param lambda a penalty parameter for L1-regularization
-#' @param tol a tolerance rate to define the sparse discriminant set
+#' @param a a parameter for SCAD penalty
+#' @param max_iter a maximum iteration number of the coordinate descent algorithm
+#' @param tol a tolerance limit of the coordinate descent algorithm
 #'
 #' @return a `hdflr` object
 #'
@@ -24,6 +26,8 @@ hdflr <- function(X,
                   basis = "bspline",
                   n_basis = 4,
                   lambda = 0.1,
+                  a = 3.7,
+                  max_iter = 1000,
                   tol = 1e-7) {
   n <- dim(X)[1]   # number of curves
   m <- dim(X)[2]   # number of timepoints
@@ -74,8 +78,8 @@ hdflr <- function(X,
                                 p,
                                 n_basis,
                                 lambda,
-                                a = 3.7,
-                                max_iter = 100,
+                                a = a,
+                                max_iter = max_iter,
                                 tol = tol)
   eta_hat <- as.numeric(fit_obj$eta_hat)
   iter <- fit_obj$iterations
@@ -140,6 +144,7 @@ hdflr <- function(X,
     type = type,
     penalty = penalty,
     lambda = lambda,
+    iter = iter,
     threshold = threshold,   # threshold of discrimination rule
     estimates = estimates,
     pred_train = pred,
@@ -203,8 +208,8 @@ predict.hdflr <- function(object, newdata, ...) {
 #' @param n_basis_list a vector containing the candidate of `n_basis` (the number of cubic B-spline bases using `n_basis`-2 knots)
 #' @param lambda_list a vector containing the candidate of `lambda` (a penalty parameter for L1-regularization)
 #' @param measure the loss function for the cross-validation. "accuracy" or "cross.entropy" (Default is "accuracy")
-#' @param tol a tolerance rate to define the sparse discriminant set
 #' @param K the nuber of folds for K-fold CV
+#' @param ... additional parameters for `hdflr`
 #'
 #' @return a `hdflr` object
 #'
@@ -219,8 +224,8 @@ cv.hdflr <- function(X,
                      n_basis_list = NULL,
                      lambda_list = NULL,
                      measure = "accuracy",
-                     tol = 1e-7,
-                     K = 5) {
+                     K = 5,
+                     ...) {
   n <- dim(X)[1]   # number of curves
   m <- dim(X)[2]   # number of timepoints
   p <- dim(X)[3]   # number of variables
@@ -263,8 +268,7 @@ cv.hdflr <- function(X,
                           type = type,
                           basis = basis,
                           n_basis = n_basis,
-                          lambda = lambda,
-                          tol = tol)
+                          lambda = lambda, ...)
 
          # Prediction of validation set
          pred <- predict(fit_obj, X_test)
@@ -313,8 +317,7 @@ cv.hdflr <- function(X,
                type = type,
                basis = basis,
                n_basis = n_basis,
-               lambda = lambda,
-               tol = tol)
+               lambda = lambda, ...)
 
   res <- list(
     opt_fit = fit,

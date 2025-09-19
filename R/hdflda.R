@@ -241,7 +241,7 @@ cv.hdflda <- function(X,
                       lambda_list = NULL,
                       measure = "accuracy",
                       tol = 1e-7,
-                      K = 10) {
+                      K = 5) {
 
   n <- dim(X)[1]   # number of curves
   m <- dim(X)[2]   # number of timepoints

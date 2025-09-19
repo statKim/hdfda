@@ -13,6 +13,8 @@ hdflr(
   basis = "bspline",
   n_basis = 4,
   lambda = 0.1,
+  a = 3.7,
+  max_iter = 1000,
   tol = 1e-07
 )
 }
@@ -33,7 +35,11 @@ hdflr(
 
 \item{lambda}{a penalty parameter for L1-regularization}
 
-\item{tol}{a tolerance rate to define the sparse discriminant set}
+\item{a}{a parameter for SCAD penalty}
+
+\item{max_iter}{a maximum iteration number of the coordinate descent algorithm}
+
+\item{tol}{a tolerance limit of the coordinate descent algorithm}
 }
 \value{
 a \code{hdflr} object

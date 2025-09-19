@@ -14,8 +14,8 @@ cv.hdflr(
   n_basis_list = NULL,
   lambda_list = NULL,
   measure = "accuracy",
-  tol = 1e-07,
-  K = 5
+  K = 5,
+  ...
 )
 }
 \arguments{
@@ -37,9 +37,9 @@ cv.hdflr(
 
 \item{measure}{the loss function for the cross-validation. "accuracy" or "cross.entropy" (Default is "accuracy")}
 
-\item{tol}{a tolerance rate to define the sparse discriminant set}
-
 \item{K}{the nuber of folds for K-fold CV}
+
+\item{...}{additional parameters for \code{hdflr}}
 }
 \value{
 a \code{hdflr} object
