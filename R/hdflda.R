@@ -217,6 +217,7 @@ predict.hdflda <- function(object, newdata, ...) {
 #' @param measure the loss function for the cross-validation. "accuracy" or "cross.entropy" (Default is "accuracy")
 #' @param tol a tolerance rate to define the sparse discriminant set
 #' @param K the nuber of folds for K-fold CV
+#' @param tie_break the tie breaking rule for cross-validation. "sparse"(default) choose the largest `lambda` and the smallest `n_basis`; "random" choose randomly
 #'
 #' @return a `hdflda` object
 #'
@@ -241,7 +242,8 @@ cv.hdflda <- function(X,
                       lambda_list = NULL,
                       measure = "accuracy",
                       tol = 1e-7,
-                      K = 5) {
+                      K = 5,
+                      tie_break = "sparse") {
 
   n <- dim(X)[1]   # number of curves
   m <- dim(X)[2]   # number of timepoints
@@ -321,9 +323,23 @@ cv.hdflda <- function(X,
   # stopCluster(cl)
 
   # Optimal hyperparameters
-  n_basis <- cand_cv[which.min(loss_list), 1]
-  lambda <- cand_cv[which.min(loss_list), 2]
   cand_cv$cv_error <- loss_list
+  hyperparam_ties <- cand_cv[which(cand_cv$cv_error == min(cand_cv$cv_error)), 1:2, drop=FALSE]
+  if (nrow(hyperparam_ties) > 1) {
+    if (tie_break == "sparse") {
+      # If there exist ties, we choose larger lambda and lower n_basis for the sparse solution
+      hyperparam_ties <- hyperparam_ties[which(hyperparam_ties$lambda == max(hyperparam_ties$lambda)), , drop=FALSE]
+      if (nrow(hyperparam_ties) > 1) {
+        # Ties for n_basis with the same lambda => choose lower n_basis
+        hyperparam_ties <- hyperparam_ties[which.min(hyperparam_ties$n_basis), , drop=FALSE]
+      }
+    } else if (tie_break == "random"){
+      # If there exist ties, we randomly choose the combination.
+      hyperparam_ties <- hyperparam_ties[sample(1:nrow(hyperparam_ties), 1), , drop=FALSE]
+    }
+  }
+  n_basis <- hyperparam_ties[, 1]
+  lambda <- hyperparam_ties[, 2]
 
   # Fit hdflda using the optimal parameters
   fit <- hdflda(X, y,

@@ -15,6 +15,7 @@ cv.hdflr(
   lambda_list = NULL,
   measure = "accuracy",
   K = 5,
+  tie_break = "sparse",
   ...
 )
 }
@@ -38,6 +39,8 @@ cv.hdflr(
 \item{measure}{the loss function for the cross-validation. "accuracy" or "cross.entropy" (Default is "accuracy")}
 
 \item{K}{the nuber of folds for K-fold CV}
+
+\item{tie_break}{the tie breaking rule for cross-validation. "sparse"(default) choose the largest \code{lambda} and the smallest \code{n_basis}; "random" choose randomly}
 
 \item{...}{additional parameters for \code{hdflr}}
 }

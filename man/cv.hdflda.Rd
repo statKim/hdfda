@@ -13,7 +13,8 @@ cv.hdflda(
   lambda_list = NULL,
   measure = "accuracy",
   tol = 1e-07,
-  K = 5
+  K = 5,
+  tie_break = "sparse"
 )
 }
 \arguments{
@@ -34,6 +35,8 @@ cv.hdflda(
 \item{tol}{a tolerance rate to define the sparse discriminant set}
 
 \item{K}{the nuber of folds for K-fold CV}
+
+\item{tie_break}{the tie breaking rule for cross-validation. "sparse"(default) choose the largest \code{lambda} and the smallest \code{n_basis}; "random" choose randomly}
 }
 \value{
 a \code{hdflda} object
