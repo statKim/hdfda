@@ -46,7 +46,7 @@ Rcpp::List group_scad_flr_cpp(const Eigen::Map<Eigen::VectorXd> Y,
 
   int iter;
   double n_sqrt = std::sqrt(static_cast<double>(n));
-  double s_sqrt = std::sqrt(static_cast<double>(s));
+  // double s_sqrt = std::sqrt(static_cast<double>(s));
 
   // (v) Main iterative loop
   for (iter = 0; iter < max_iter; ++iter) {
@@ -74,7 +74,8 @@ Rcpp::List group_scad_flr_cpp(const Eigen::Map<Eigen::VectorXd> Y,
         f_hat.col(j).setZero();
       } else {
         double t = norm_f / n_sqrt;
-        double deriv = scad_deriv(t, lambda*s_sqrt, a);
+        double deriv = scad_deriv(t, lambda, a);
+        // double deriv = scad_deriv(t, lambda*s_sqrt, a);
         double shrinkage = 1.0 - deriv * n_sqrt / norm_P;
 
         f_sum -= f_hat.col(j);
