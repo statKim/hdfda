@@ -71,14 +71,13 @@ basis_mfd <- function(X,
                                            norder = n_order)
     if (isTRUE(gram)) {
       # Make orthogonal B-spline basis
-      phi <- fda::eval.basis(grid, basis_ftn)
-      An <- pracma::gramSchmidt(phi)$R
-      M <- solve(t(phi) %*% phi, t(phi))
-      M_J <- t(M) %*% An
       # phi <- fda::eval.basis(grid, basis_ftn)
-      # phi <- pracma::gramSchmidt(phi)$Q
+      # An <- pracma::gramSchmidt(phi)$R
       # M <- solve(t(phi) %*% phi, t(phi))
-      # M_J <- t(M)
+      # M_J <- t(M) %*% An
+      phi <- fda::eval.basis(grid, basis_ftn)
+      phi <- pracma::gramSchmidt(phi)$Q
+      M_J <- phi
     } else {
       # Non-orthogonal B-spline basis
       phi <- fda::eval.basis(grid, basis_ftn)
@@ -127,6 +126,7 @@ basis_mfd <- function(X,
     res <- list(
       basis = basis,
       basis_ftn = basis_ftn,
+      phi = phi,
       gram = gram,
       grid = grid,
       n_basis = n_basis,
@@ -172,17 +172,14 @@ predict.basis_mfd <- function(object, newdata, ...) {
     # B-spline coefficients for each functional covariate
     n_basis <- object$n_basis
     basis_ftn <- object$basis_ftn
-    phi <- fda::eval.basis(grid, basis_ftn)
     if (isTRUE(object$gram)) {
       # Make orthogonal B-spline basis
-      phi <- fda::eval.basis(grid, basis_ftn)
-      An <- pracma::gramSchmidt(phi)$R
-      M <- solve(t(phi) %*% phi, t(phi))
-      M_J <- t(M) %*% An
       # phi <- fda::eval.basis(grid, basis_ftn)
-      # phi <- pracma::gramSchmidt(phi)$Q
+      # An <- pracma::gramSchmidt(phi)$R
       # M <- solve(t(phi) %*% phi, t(phi))
-      # M_J <- t(M)
+      # M_J <- t(M) %*% An
+      phi <- object$phi
+      M_J <- phi
     } else {
       # Non-orthogonal B-spline basis
       phi <- fda::eval.basis(grid, basis_ftn)
