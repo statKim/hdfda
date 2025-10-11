@@ -54,6 +54,75 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// group_lla_admm
+Rcpp::List group_lla_admm(const Eigen::MatrixXd& Sigma, const Eigen::VectorXd& delta, int s, double lambda, double gamma, int max_iter_lla, int max_iter_admm, double rho, double tol, double tol_abs, double tol_rel);
+RcppExport SEXP _hdfda_group_lla_admm(SEXP SigmaSEXP, SEXP deltaSEXP, SEXP sSEXP, SEXP lambdaSEXP, SEXP gammaSEXP, SEXP max_iter_llaSEXP, SEXP max_iter_admmSEXP, SEXP rhoSEXP, SEXP tolSEXP, SEXP tol_absSEXP, SEXP tol_relSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type Sigma(SigmaSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< int >::type s(sSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< double >::type gamma(gammaSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter_lla(max_iter_llaSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter_admm(max_iter_admmSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< double >::type tol_abs(tol_absSEXP);
+    Rcpp::traits::input_parameter< double >::type tol_rel(tol_relSEXP);
+    rcpp_result_gen = Rcpp::wrap(group_lla_admm(Sigma, delta, s, lambda, gamma, max_iter_lla, max_iter_admm, rho, tol, tol_abs, tol_rel));
+    return rcpp_result_gen;
+END_RCPP
+}
+// group_lla_nested_admm
+Rcpp::List group_lla_nested_admm(const Eigen::MatrixXd& Sigma, const Eigen::VectorXd& delta, int s, const Eigen::MatrixXd& Theta, double lambda, double gamma, int max_iter_lla, int max_iter_admm, int max_iter_nested_admm, double rho, double sigma, double tol, double tol_abs, double tol_rel);
+RcppExport SEXP _hdfda_group_lla_nested_admm(SEXP SigmaSEXP, SEXP deltaSEXP, SEXP sSEXP, SEXP ThetaSEXP, SEXP lambdaSEXP, SEXP gammaSEXP, SEXP max_iter_llaSEXP, SEXP max_iter_admmSEXP, SEXP max_iter_nested_admmSEXP, SEXP rhoSEXP, SEXP sigmaSEXP, SEXP tolSEXP, SEXP tol_absSEXP, SEXP tol_relSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type Sigma(SigmaSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< int >::type s(sSEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type Theta(ThetaSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< double >::type gamma(gammaSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter_lla(max_iter_llaSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter_admm(max_iter_admmSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter_nested_admm(max_iter_nested_admmSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< double >::type tol_abs(tol_absSEXP);
+    Rcpp::traits::input_parameter< double >::type tol_rel(tol_relSEXP);
+    rcpp_result_gen = Rcpp::wrap(group_lla_nested_admm(Sigma, delta, s, Theta, lambda, gamma, max_iter_lla, max_iter_admm, max_iter_nested_admm, rho, sigma, tol, tol_abs, tol_rel));
+    return rcpp_result_gen;
+END_RCPP
+}
+// group_lla_nested_admm_warm_start
+Rcpp::List group_lla_nested_admm_warm_start(const Eigen::MatrixXd& Sigma, const Eigen::VectorXd& delta, int s, const Eigen::MatrixXd& Theta, double lambda, double gamma, int max_iter_lla, int max_iter_admm, int max_iter_nested_admm, double rho, double sigma, double tol, double tol_abs, double tol_rel);
+RcppExport SEXP _hdfda_group_lla_nested_admm_warm_start(SEXP SigmaSEXP, SEXP deltaSEXP, SEXP sSEXP, SEXP ThetaSEXP, SEXP lambdaSEXP, SEXP gammaSEXP, SEXP max_iter_llaSEXP, SEXP max_iter_admmSEXP, SEXP max_iter_nested_admmSEXP, SEXP rhoSEXP, SEXP sigmaSEXP, SEXP tolSEXP, SEXP tol_absSEXP, SEXP tol_relSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type Sigma(SigmaSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< int >::type s(sSEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type Theta(ThetaSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< double >::type gamma(gammaSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter_lla(max_iter_llaSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter_admm(max_iter_admmSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter_nested_admm(max_iter_nested_admmSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< double >::type tol_abs(tol_absSEXP);
+    Rcpp::traits::input_parameter< double >::type tol_rel(tol_relSEXP);
+    rcpp_result_gen = Rcpp::wrap(group_lla_nested_admm_warm_start(Sigma, delta, s, Theta, lambda, gamma, max_iter_lla, max_iter_admm, max_iter_nested_admm, rho, sigma, tol, tol_abs, tol_rel));
+    return rcpp_result_gen;
+END_RCPP
+}
 // trapzRcpp
 double trapzRcpp(const Rcpp::NumericVector X, const Rcpp::NumericVector Y);
 RcppExport SEXP _hdfda_trapzRcpp(SEXP XSEXP, SEXP YSEXP) {
@@ -71,6 +140,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_hdfda_normalize_phi", (DL_FUNC) &_hdfda_normalize_phi, 2},
     {"_hdfda_get_fpc_scores", (DL_FUNC) &_hdfda_get_fpc_scores, 3},
     {"_hdfda_group_scad_flr_cpp", (DL_FUNC) &_hdfda_group_scad_flr_cpp, 8},
+    {"_hdfda_group_lla_admm", (DL_FUNC) &_hdfda_group_lla_admm, 11},
+    {"_hdfda_group_lla_nested_admm", (DL_FUNC) &_hdfda_group_lla_nested_admm, 14},
+    {"_hdfda_group_lla_nested_admm_warm_start", (DL_FUNC) &_hdfda_group_lla_nested_admm_warm_start, 14},
     {"_hdfda_trapzRcpp", (DL_FUNC) &_hdfda_trapzRcpp, 2},
     {NULL, NULL, 0}
 };

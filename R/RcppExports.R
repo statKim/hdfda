@@ -13,6 +13,18 @@ group_scad_flr_cpp <- function(Y, Theta, p, s, lambda, a = 3.7, max_iter = 100L,
     .Call(`_hdfda_group_scad_flr_cpp`, Y, Theta, p, s, lambda, a, max_iter, tol)
 }
 
+group_lla_admm <- function(Sigma, delta, s, lambda = 0.1, gamma = 3.7, max_iter_lla = 100L, max_iter_admm = 1000L, rho = 1.0, tol = 1e-5, tol_abs = 1e-4, tol_rel = 1e-2) {
+    .Call(`_hdfda_group_lla_admm`, Sigma, delta, s, lambda, gamma, max_iter_lla, max_iter_admm, rho, tol, tol_abs, tol_rel)
+}
+
+group_lla_nested_admm <- function(Sigma, delta, s, Theta, lambda = 0.1, gamma = 3.7, max_iter_lla = 100L, max_iter_admm = 100L, max_iter_nested_admm = 30L, rho = 1.0, sigma = 1.0, tol = 1e-5, tol_abs = 1e-4, tol_rel = 1e-2) {
+    .Call(`_hdfda_group_lla_nested_admm`, Sigma, delta, s, Theta, lambda, gamma, max_iter_lla, max_iter_admm, max_iter_nested_admm, rho, sigma, tol, tol_abs, tol_rel)
+}
+
+group_lla_nested_admm_warm_start <- function(Sigma, delta, s, Theta, lambda = 0.1, gamma = 3.7, max_iter_lla = 100L, max_iter_admm = 1000L, max_iter_nested_admm = 30L, rho = 1.0, sigma = 1.0, tol = 1e-5, tol_abs = 1e-4, tol_rel = 1e-2) {
+    .Call(`_hdfda_group_lla_nested_admm_warm_start`, Sigma, delta, s, Theta, lambda, gamma, max_iter_lla, max_iter_admm, max_iter_nested_admm, rho, sigma, tol, tol_abs, tol_rel)
+}
+
 #' Trapezoid Rule Numerical Integration
 #' 
 #' Trapezoid Rule Numerical Integration using Rcpp
