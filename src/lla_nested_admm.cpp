@@ -6,6 +6,10 @@
 using namespace Eigen;
 using namespace Rcpp;
 
+// Alias for cholesky decomposition objects
+using LLT_Solver = Eigen::LLT<Eigen::MatrixXd>;
+using SolverList = std::vector<LLT_Solver, Eigen::aligned_allocator<LLT_Solver>>;
+
 
 /**
  * @brief Computes the derivative of the SCAD penalty for group norms.
@@ -54,7 +58,6 @@ VectorXd inner_admm_solver(const VectorXd& v_j,
                            int max_iter,
                            double tol_abs,
                            double tol_rel) {
-
   int s = Theta_j.cols(); // size of group j
 
   // Initialize inner loop variables
@@ -126,6 +129,8 @@ VectorXd admm_nested_solver(const Eigen::MatrixXd& Sigma,
                             const Eigen::VectorXd& group_weights,
                             const MatrixXd& Theta,
                             int s,
+                            const Eigen::MatrixXd& M_inv, // Pass pre-computed inverses
+                            const std::vector<MatrixXd>& M_j_inv_list, // Pass pre-computed inverses
                             int max_iter = 100,
                             int max_iter_nested = 30,
                             double rho = 1.0,
@@ -137,18 +142,18 @@ VectorXd admm_nested_solver(const Eigen::MatrixXd& Sigma,
   int p = Sigma.rows();
   int num_groups = p / s;
 
-  // --- Pre-computation ---
-  // 1. Pre-compute the matrix M and its inverse for the beta-update
-  MatrixXd M = Sigma + rho * MatrixXd::Identity(p, p) + rho * delta * delta.transpose();
-  MatrixXd M_inv = M.inverse();
-
-  // 2. For inner z_j-update
-  std::vector<MatrixXd> M_j_inv_list;
-  for (int j = 0; j < num_groups; ++j) {
-    MatrixXd Theta_j = Theta.block(0, j * s, n, s);
-    MatrixXd M_j = (rho * MatrixXd::Identity(s, s)) + (sigma / n) * Theta_j.transpose() * Theta_j;
-    M_j_inv_list.push_back(M_j.inverse());
-  }
+  // // --- Pre-computation ---
+  // // 1. Pre-compute the matrix M and its inverse for the beta-update
+  // MatrixXd M = Sigma + rho * MatrixXd::Identity(p, p) + rho * delta * delta.transpose();
+  // MatrixXd M_inv = M.inverse();
+  //
+  // // 2. For inner z_j-update
+  // std::vector<MatrixXd> M_j_inv_list;
+  // for (int j = 0; j < num_groups; ++j) {
+  //   MatrixXd Theta_j = Theta.block(0, j * s, n, s);
+  //   MatrixXd M_j = (rho * MatrixXd::Identity(s, s)) + (sigma / n) * Theta_j.transpose() * Theta_j;
+  //   M_j_inv_list.push_back(M_j.inverse());
+  // }
 
   // --- Initialization ---
   VectorXd beta = VectorXd::Zero(p);
@@ -235,8 +240,22 @@ Rcpp::List group_lla_nested_admm(const Eigen::MatrixXd& Sigma,
   }
   int num_groups = p / s;
 
+  // --- Pre-computation ---
+  // Pre-compute M_inv for the beta-update (outer ADMM)
+  MatrixXd M = Sigma + rho * MatrixXd::Identity(p, p) + rho * delta * delta.transpose();
+  MatrixXd M_inv = M.inverse();
+
+  // Pre-compute M_j_inv matrices for inner ADMM
+  std::vector<MatrixXd> M_j_inv_list;
+  for (int j = 0; j < num_groups; ++j) {
+    MatrixXd Theta_j = Theta.block(0, j * s, n, s);
+    MatrixXd M_j = (rho * MatrixXd::Identity(s, s)) + (sigma / n) * Theta_j.transpose() * Theta_j;
+    M_j_inv_list.push_back(M_j.inverse());
+  }
+
   VectorXd beta_hat = VectorXd::Constant(p, 1.0 / p);
 
+  std::vector<double> error_conv;
   int iter;
   for (iter = 0; iter < max_iter_lla; ++iter) {
     VectorXd beta_hat_old = beta_hat;
@@ -247,8 +266,12 @@ Rcpp::List group_lla_nested_admm(const Eigen::MatrixXd& Sigma,
 
     // Solve subproblem using the block-based ADMM solver
     beta_hat = admm_nested_solver(Sigma, delta, group_weights, Theta, s,
+                                  M_inv, M_j_inv_list,
                                   max_iter_admm, max_iter_nested_admm,
                                   rho, sigma, tol_abs, tol_rel);
+
+    // Save the convergence error
+    error_conv.push_back( (beta_hat - beta_hat_old).norm() / (beta_hat_old.norm() + 1e-8) );
 
     if ((beta_hat - beta_hat_old).norm() / (beta_hat_old.norm() + 1e-8) < tol) {
       // Rcpp::Rcout << "LLA converged at outer iteration " << iter + 1 << std::endl;
@@ -262,7 +285,8 @@ Rcpp::List group_lla_nested_admm(const Eigen::MatrixXd& Sigma,
 
   return Rcpp::List::create(
     Rcpp::Named("beta") = beta_hat,
-    Rcpp::Named("iterations") = iter + 1
+    Rcpp::Named("iterations") = iter + 1,
+    Rcpp::Named("error_conv") = error_conv
   );
 }
 
@@ -281,7 +305,8 @@ void inner_admm_solver_warm_start(VectorXd& z_j, // Pass by reference for warm s
                                   double w_j,
                                   double rho,
                                   double sigma,
-                                  const MatrixXd& M_j_inv,
+                                  const Eigen::LLT<Eigen::MatrixXd>& M_j_chol,
+                                  // const MatrixXd& M_j_inv,
                                   int max_iter,
                                   double tol_abs,
                                   double tol_rel) {
@@ -295,7 +320,8 @@ void inner_admm_solver_warm_start(VectorXd& z_j, // Pass by reference for warm s
 
     // 1. z_j-Update (Inner)
     VectorXd rhs_z = rho * v_j + sigma * A_j.transpose() * (y_j - d_j);
-    z_j = M_j_inv * rhs_z;
+    z_j = M_j_chol.solve(rhs_z);
+    // z_j = M_j_inv * rhs_z;
 
     // 2. y_j-Update (Inner, Block Soft-Thresholding)
     VectorXd c_j = A_j * z_j + d_j;
@@ -352,7 +378,10 @@ void admm_solver_warm_start(VectorXd& beta,
                             std::vector<VectorXd>& inner_z,
                             std::vector<VectorXd>& inner_y,
                             std::vector<VectorXd>& inner_d,
-                            const std::vector<MatrixXd>& M_j_inv_list, // Pass pre-computed inverses
+                            const Eigen::LLT<Eigen::MatrixXd>& M_chol,
+                            const SolverList& M_j_chol_list,
+                            // const Eigen::MatrixXd& M_inv, // Pass pre-computed inverses
+                            // const std::vector<MatrixXd>& M_j_inv_list, // Pass pre-computed inverses
                             const Eigen::MatrixXd& Sigma,
                             const Eigen::VectorXd& delta,
                             const Eigen::VectorXd& group_weights,
@@ -369,18 +398,14 @@ void admm_solver_warm_start(VectorXd& beta,
   int p = Sigma.rows();
   int num_groups = p / s;
 
-  // --- Pre-computation ---
-  // Pre-compute for the beta-update
-  MatrixXd M = Sigma + rho * MatrixXd::Identity(p, p) + rho * delta * delta.transpose();
-  MatrixXd M_inv = M.inverse();
-
   // --- Main ADMM Loop ---
   for (int t = 0; t < max_iter; ++t) {
     VectorXd z_old = z; // Store z from previous iteration for convergence check
 
     // 1. beta-Update
     VectorXd rhs = rho * (z - u_2 + (1.0 - u_1) * delta);
-    beta = M_inv * rhs;
+    beta = M_chol.solve(rhs);
+    // beta = M_inv * rhs;
 
     // 2. z-Update (call inner ADMM for each group)
     VectorXd v = beta + u_2;
@@ -391,7 +416,8 @@ void admm_solver_warm_start(VectorXd& beta,
       // Call the inner solver, passing state variables by reference
       inner_admm_solver_warm_start(inner_z[j], inner_y[j], inner_d[j],
                                    v_j, Theta_j, group_weights(j), rho, sigma,
-                                   M_j_inv_list[j], max_iter_nested, tol_abs, tol_rel);
+                                   M_j_chol_list[j], max_iter_nested, tol_abs, tol_rel);
+      // M_j_inv_list[j], max_iter_nested, tol_abs, tol_rel);
       z.segment(j * s, s) = inner_z[j];
     }
 
@@ -403,15 +429,15 @@ void admm_solver_warm_start(VectorXd& beta,
 
     // --- Convergence Check ---
     // Primal residuals for consensus constraint
-    double r_u1_norm = (beta - z).norm();
-    double r_u2_norm = std::abs(delta.transpose() * beta - 1.0);
+    double r_u1_norm = std::abs(delta.transpose() * beta - 1.0);
+    double r_u2_norm = (beta - z).norm();
 
     // Dual residual for consensus constraint
     double s_norm = rho * (z - z_old).norm();
 
     // Calculate three corresponding tolerances
-    double eps_pri_u1 = std::sqrt(p) * tol_abs + tol_rel * std::max(beta.norm(), z.norm());
-    double eps_pri_u2 = std::sqrt(1) * tol_abs + tol_rel * std::max((delta.transpose() * beta).norm(), 1.0);
+    double eps_pri_u1 = std::sqrt(1) * tol_abs + tol_rel * std::max((delta.transpose() * beta).norm(), 1.0);
+    double eps_pri_u2 = std::sqrt(p) * tol_abs + tol_rel * std::max(beta.norm(), z.norm());
     double eps_dual = std::sqrt(p) * tol_abs + tol_rel * (rho * u_2.norm());
 
     // Check if ALL three conditions are met
@@ -469,14 +495,34 @@ Rcpp::List group_lla_nested_admm_warm_start(const Eigen::MatrixXd& Sigma,
     inner_d_states[j] = VectorXd::Zero(n);
   }
 
-  // Pre-compute M_j_inv matrices for inner solvers
-  std::vector<MatrixXd> M_j_inv_list;
+  // --- Cholesky decomposition objects for inverse computations ---
+  // Pre-compute M_inv for the beta-update (outer ADMM)
+  MatrixXd M = Sigma + rho * MatrixXd::Identity(p, p) + rho * delta * delta.transpose();
+  auto M_chol = M.llt();
+
+  // Pre-compute M_j_inv matrices for inner ADMM
+  using LLT_Solver = Eigen::LLT<Eigen::MatrixXd>;  // alias
+  std::vector<LLT_Solver, Eigen::aligned_allocator<LLT_Solver>> M_j_chol_list;
   for (int j = 0; j < num_groups; ++j) {
     MatrixXd Theta_j = Theta.block(0, j * s, n, s);
     MatrixXd M_j = (rho * MatrixXd::Identity(s, s)) + (sigma / n) * Theta_j.transpose() * Theta_j;
-    M_j_inv_list.push_back(M_j.inverse());
+    M_j_chol_list.emplace_back(M_j.llt());
   }
 
+  // // --- Pre-computation ---
+  // // Pre-compute M_inv for the beta-update (outer ADMM)
+  // MatrixXd M = Sigma + rho * MatrixXd::Identity(p, p) + rho * delta * delta.transpose();
+  // MatrixXd M_inv = M.inverse();
+  //
+  // // Pre-compute M_j_inv matrices for inner ADMM
+  // std::vector<MatrixXd> M_j_inv_list;
+  // for (int j = 0; j < num_groups; ++j) {
+  //   MatrixXd Theta_j = Theta.block(0, j * s, n, s);
+  //   MatrixXd M_j = (rho * MatrixXd::Identity(s, s)) + (sigma / n) * Theta_j.transpose() * Theta_j;
+  //   M_j_inv_list.push_back(M_j.inverse());
+  // }
+
+  std::vector<double> error_conv;
   int iter;
   for (iter = 0; iter < max_iter_lla; ++iter) {
     VectorXd beta_hat_old = beta_hat;
@@ -488,10 +534,14 @@ Rcpp::List group_lla_nested_admm_warm_start(const Eigen::MatrixXd& Sigma,
     // Call admm_solver, passing all state variables for a full warm start
     admm_solver_warm_start(beta_hat, z, u_2, u_1,
                            inner_z_states, inner_y_states, inner_d_states,
-                           M_j_inv_list,
+                           M_chol, M_j_chol_list,
+                           // M_inv, M_j_inv_list,
                            Sigma, delta, group_weights, Theta, s,
                            max_iter_admm, max_iter_nested_admm,
                            rho, sigma, tol_abs, tol_rel);
+
+    // Save the convergence error
+    error_conv.push_back( (beta_hat - beta_hat_old).norm() / (beta_hat_old.norm() + 1e-8) );
 
     if ((beta_hat - beta_hat_old).norm() / (beta_hat_old.norm() + 1e-8) < tol) {
       // Rcpp::Rcout << "LLA converged at outer iteration " << iter + 1 << std::endl;
@@ -506,6 +556,7 @@ Rcpp::List group_lla_nested_admm_warm_start(const Eigen::MatrixXd& Sigma,
 
   return Rcpp::List::create(
     Rcpp::Named("beta") = beta_hat,
-    Rcpp::Named("iterations") = iter + 1
+    Rcpp::Named("iterations") = iter + 1,
+    Rcpp::Named("error_conv") = error_conv
   );
 }
