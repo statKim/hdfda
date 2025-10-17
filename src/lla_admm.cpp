@@ -1,6 +1,5 @@
 #include <RcppEigen.h>
-#include <iostream>
-
+// #include <Eigen/QR>    // For CompleteOrthogonalDecomposition
 // [[Rcpp::depends(RcppEigen)]]
 
 using namespace Eigen;
@@ -8,38 +7,81 @@ using namespace Rcpp;
 
 
 /**
- * @brief Computes the derivative of the SCAD penalty for group norms.
- * @param beta The current vector of all beta coefficients.
- * @param s The uniform size of each group.
- * @param num_groups The total number of groups.
+ * @brief Computes the derivative of the SCAD penalty.
  * @param lambda The lambda tuning parameter for SCAD.
- * @param gamma The gamma tuning parameter for SCAD.
+ * @param a The gamma tuning parameter for SCAD.
  * @return A vector of weights, one for each group.
  */
-VectorXd scad_derivative_group(const VectorXd& beta, 
-                               int s,
-                               int num_groups, 
-                               double lambda,
-                               double gamma) {
-  VectorXd group_weights(num_groups);
+VectorXd scad_deriv(const VectorXd& norm_vec, 
+                    double lambda,
+                    double a = 3.7) {
+  int num_groups = norm_vec.size();
+  VectorXd weights(num_groups);
   
   for (int g = 0; g < num_groups; ++g) {
-    // Use .segment() to get a view of the g-th group without copying
-    double norm_beta_g = beta.segment(g * s, s).norm();
-    
-    if (norm_beta_g <= lambda) {
-      group_weights(g) = lambda;
-    } else if (norm_beta_g > gamma * lambda) {
-      group_weights(g) = 0.0;
+    if (norm_vec(g) <= lambda) {
+      weights(g) = lambda;
+    } else if (norm_vec(g) > a * lambda) {
+      weights(g) = 0.0;
     } else {
-      group_weights(g) = (gamma * lambda - norm_beta_g) / (gamma - 1.0);
+      weights(g) = (a * lambda - norm_vec(g)) / (a - 1.0);
     }
   }
-  return group_weights;
+  return weights;
 }
 
 
-// --- ADMM Solver for Group Lasso ---
+
+// Project a vector onto the L1 ball
+// Computes the Euclidean projection of a vector onto the L1 ball.
+// This function solves: argmin_v ||v - y||_2^2 s.t. ||v||_1 <= R
+VectorXd proj_l1_ball(const VectorXd& y, double R = 1.) {
+   // Basic sanity check
+   if (R <= 0) {
+     return VectorXd::Zero(y.size());
+   }
+   
+   // Step 1: Check if the vector is already inside the L1 ball
+   double y_l1_norm = y.lpNorm<1>();
+   if (y_l1_norm <= R) {
+     return y;
+   }
+   
+   // Step 2: Take absolute values
+   VectorXd y_abs = y.cwiseAbs();
+   
+   // Step 3: Sort the absolute values in descending order.
+   // Eigen doesn't have a direct sort, so we copy to std::vector to sort.
+   std::vector<double> y_abs_sorted(y_abs.data(), y_abs.data() + y_abs.size());
+   std::sort(y_abs_sorted.begin(), y_abs_sorted.end(), std::greater<double>());
+   
+   // Step 4 & 5: Find the optimal threshold 'tau'
+   // This is the core of the efficient algorithm by Duchi et al. (2008).
+   // We are looking for the correct Lagrange multiplier for the dual problem,
+   // which corresponds to the soft-thresholding value.
+   double cum_sum = 0.0;
+   double tau = 0.0;
+   
+   for (int k = 0; k < y_abs_sorted.size(); ++k) {
+     cum_sum += y_abs_sorted[k];
+     double temp_tau = (cum_sum - R) / (k + 1.0);
+     // We find the pivot point where the cumulative sum condition is met.
+     // This ensures ||S_tau(y)||_1 = R.
+     if (y_abs_sorted[k] > temp_tau) {
+       tau = temp_tau;
+     }
+   }
+   
+   // Step 6: Apply soft-thresholding with the found 'tau'
+   // v_i = sign(y_i) * max(|y_i| - tau, 0)
+   // We use Eigen's element-wise (cwise) operations for efficiency.
+   VectorXd v = (y_abs.array() - tau).cwiseMax(0);
+   return v.array() * y.cwiseSign().array();
+ }
+
+
+
+// --- ADMM Algorithm ---
 
 /**
  * @brief Solves the constrained weighted Group Lasso problem using ADMM with block operations.
@@ -54,160 +96,126 @@ VectorXd scad_derivative_group(const VectorXd& beta,
 VectorXd admm_solver(const Eigen::MatrixXd& Sigma,
                      const Eigen::VectorXd& delta,
                      const Eigen::VectorXd& group_weights,
+                     const MatrixXd& Theta,
                      int s,
+                     double R,
+                     const Eigen::LLT<Eigen::MatrixXd>& M_chol,
+                     int max_iter = 100,
                      double rho = 1.0,
-                     int max_iter = 2000,
                      double tol_abs = 1e-4,
-                     double tol_rel = 1e-2) {
+                     double tol_rel = 1e-3) {
   // --- Initial Checks ---
+  int n = Theta.rows();
   int p = Sigma.rows();
-  if (p % s != 0) {
-    Rcpp::stop("Total number of variables p must be divisible by group size s.");
-  }
   int num_groups = p / s;
-  if (group_weights.size() != num_groups) {
-    Rcpp::stop("Length of group_weights must be equal to p/s.");
-  }
-  
-  // --- Pre-computation ---
-  // Pre-compute the matrix M and its inverse for the beta-update
-  MatrixXd M = Sigma + rho * MatrixXd::Identity(p, p) + rho * delta * delta.transpose();
-  MatrixXd M_inv = M.inverse();
   
   // --- Initialization ---
   VectorXd beta = VectorXd::Zero(p);
-  VectorXd z = VectorXd::Zero(p);
-  VectorXd u_2 = VectorXd::Zero(p); // scaled dual variable for beta - z = 0
+  VectorXd z = VectorXd::Zero(n);
+  VectorXd y = VectorXd::Zero(p);
   double u_1 = 0.0;               // scaled dual variable for delta^T*beta - 1 = 0
+  VectorXd u_2 = VectorXd::Zero(n); // scaled dual variable for n^(-1/2)*Theta*beta - z = 0
+  VectorXd u_3 = VectorXd::Zero(p); // scaled dual variable for beta - y = 0
+  MatrixXd z_mat = MatrixXd::Zero(n, p);  // for each covariates; rowSums(z_mat) = z
+  MatrixXd u_2_mat = MatrixXd::Zero(n, p);  // for each covariates; rowSums(u_2_mat) = u_2
   
-  // --- Main ADMM Loop ---
+  MatrixXd Theta_2 = Theta / std::sqrt(n);
+  
+  // MatrixXd M = Sigma + rho/n * Theta.transpose() * Theta + rho * delta * delta.transpose();
+  // MatrixXd M_pinv = M.completeOrthogonalDecomposition().pseudoInverse();
+  
+  // --- ADMM Loop ---
   for (int t = 0; t < max_iter; ++t) {
     VectorXd z_old = z; // Store z from previous iteration for convergence check
-    
+    VectorXd y_old = y; // Store y from previous iteration for convergence check
+
     // 1. beta-Update
-    VectorXd rhs = rho * (z - u_2 + (1.0 - u_1) * delta);
-    beta = M_inv * rhs;
-    
-    // 2. z-Update (Block Soft-Thresholding)
-    VectorXd v = beta + u_2;
-    for (int g = 0; g < num_groups; ++g) {
-      VectorXd v_g = v.segment(g * s, s);
-      double norm_v_g = v_g.norm();
-      double threshold = group_weights(g) / rho;
+    VectorXd rhs = rho * ((1.0 - u_1) * delta + Theta_2.transpose() * (z - u_2) + (y - u_3));
+    beta = M_chol.solve(rhs);
+    // beta = M_pinv * rhs;
 
+    // 2. z-Update (with updating u_2_mat)
+    for (int j = 0; j < num_groups; ++j) {
+      MatrixXd Theta_2_j = Theta_2.block(0, j * s, n, s) * beta.segment(j * s, s);
+      VectorXd v_j = Theta_2_j + u_2_mat.col(j);
+      double norm_v_j = v_j.norm();
+      double threshold = group_weights(j) / rho;
+      
       double scale = 0.0;
-      if (norm_v_g > 0) {
-        scale = std::max(1.0 - threshold / norm_v_g, 0.0);
+      if (norm_v_j > 0) {
+        scale = std::max(1.0 - threshold / norm_v_j, 0.0);
       }
-
-      z.segment(g * s, s) = scale * v_g;
+      z_mat.col(j) = scale * v_j;
+      
+      // Update u_2_mat
+      u_2_mat.col(j) = u_2_mat.col(j) + Theta_2_j - z_mat.col(j);
     }
+    z = z_mat.rowwise().sum();
+
+    // 3. y-Update
+    y = proj_l1_ball(beta + u_3, R);
     
-    // 3. u_1-Update (scaled dual update)
+    // 4. Dual-Update (scaled dual update)
     u_1 = u_1 + delta.transpose() * beta - 1.0;
+    u_2 = u_2_mat.rowwise().sum();
+    u_3 = u_3 + beta - y;
     
-    // 4. u_2-Update (scaled dual update)
-    u_2 = u_2 + beta - z;
     
     // --- Convergence Check ---
-    // Primal residuals for consensus constraint
-    double r_u1_norm = (beta - z).norm();
-    double r_u2_norm = std::abs(delta.transpose() * beta - 1.0);
+    // Primal residuals
+    double r_primal_delta = delta.transpose() * beta - 1.0;
+    VectorXd r_primal_z = Theta_2 * beta - z;
+    VectorXd r_primal_y = beta - y;
+    double r_primal = std::sqrt(std::pow(r_primal_delta, 2.) + 
+                                r_primal_z.squaredNorm() + 
+                                r_primal_y.squaredNorm());
     
-    // Dual residual for consensus constraint
-    double s_norm = rho * (z - z_old).norm(); 
+    // Dual residuals
+    VectorXd r_dual_z = rho * Theta_2.transpose() * (z - z_old);
+    VectorXd r_dual_y = rho * (y - y_old);
+    double r_dual = std::sqrt(r_dual_z.squaredNorm() + r_dual_y.squaredNorm());
     
-    // Calculate three corresponding tolerances
-    double eps_pri_u1 = std::sqrt(p) * tol_abs + tol_rel * std::max(beta.norm(), z.norm());
-    double eps_pri_u2 = std::sqrt(1) * tol_abs + tol_rel * std::max((delta.transpose() * beta).norm(), 1.0);
-    double eps_dual = std::sqrt(p) * tol_abs + tol_rel * (rho * u_2.norm());
+    // Thresholds
+    double eps_primal = std::sqrt(p + n + 1.0) * tol_abs + tol_rel * std::max({
+      (Theta_2 * beta).norm(), z.norm(), y.norm()
+    });
+    double eps_dual = std::sqrt(p) * tol_abs + tol_rel * rho * std::max({
+      (Theta_2.transpose() * u_2).norm(), u_3.norm() 
+    });
+    
+    // MatrixXd A(n + 1, p);
+    // A.row(0) = delta;
+    // A.block(1, 0, n, p) = Theta_2;
+    // MatrixXd B(n + 1, n);
+    // B.row(0).setZero();
+    // B.block(1, 0, n, n) = -MatrixXd::Identity(n, n);
+    // VectorXd c = VectorXd::Zero(n + 1);
+    // c(0) = 1;
+    // 
+    // // Primal and dual residuals
+    // double r_primal = (A * beta + B * z - c).norm();
+    // double r_dual = rho * (Theta_2.transpose() * (z - z_old)).norm();
+    // 
+    // // Thresholds
+    // double eps_primal = std::sqrt(n + 1.0) * tol_abs + tol_rel * std::max({
+    //   (A * beta).norm(), (B * z).norm(), c.norm()
+    // });
+    // double eps_dual = std::sqrt(p) * tol_abs + tol_rel * (Theta_2.transpose() * u_2).norm();
     
     // Check if ALL three conditions are met
-    if (r_u1_norm < eps_pri_u1 && r_u2_norm < eps_pri_u2 && s_norm < eps_dual) {
+    if (r_primal < eps_primal && r_dual < eps_dual) {
       // Rcpp::Rcout << "Converged at iteration " << t + 1 << std::endl;
       break;
     }
     
     if (t == max_iter -1){
-      Rcpp::Rcout << "Warning: ADMM did not converge within max_iter." << std::endl;
+      Rcpp::Rcout << "Warning: ADMM did not converge within max_iter=" << max_iter << "!" << std::endl;
     }
   }
   
-  // return Rcpp::List::create(
-  //   Rcpp::Named("beta") = beta,
-  //   Rcpp::Named("z") = z
-  // );
-  return z;
+  return beta;
 }
 
-
-
-// // --- Inner ADMM Solver for Group Lasso ---
-//
-// /**
-//  * @brief Solves the constrained weighted Group Lasso problem using ADMM with block operations.
-//  * @param Sigma The quadratic matrix.
-//  * @param delta The vector from the linear constraint.
-//  * @param s The uniform size of each group.
-//  * @param num_groups The total number of groups.
-//  * @param group_weights The adaptive weights for each group from LLA.
-//  * @param rho The ADMM penalty parameter.
-//  * ... (other params)
-//  * @return The estimated beta vector.
-//  */
-// VectorXd admm_solver(const MatrixXd& Sigma,
-//                      const VectorXd& delta,
-//                      int s,
-//                      int num_groups,
-//                      const VectorXd& group_weights,
-//                      double rho,
-//                      int max_iter_inner,
-//                      double tol_abs,
-//                      double tol_rel) {
-//   int p = Sigma.rows();
-//
-//   VectorXd beta1 = VectorXd::Zero(p);
-//   VectorXd beta2 = VectorXd::Zero(p);
-//   double u1 = 0.0;
-//   VectorXd u2 = VectorXd::Zero(p);
-//
-//   MatrixXd Sigma_hat_rho_inv = (rho * (Sigma + rho * delta * delta.transpose() + rho * MatrixXd::Identity(p, p))).inverse();
-//
-//   for (int t = 0; t < max_iter_inner; ++t) {
-//     VectorXd beta2_old = beta2;
-//
-//     // Step 1: beta1-update
-//     beta1 = Sigma_hat_rho_inv * ((1.0 - u1) * delta + (beta2 - u2));
-//
-//     // Step 2: beta2-update
-//     VectorXd v = beta1 + u2;
-//     for (int g = 0; g < num_groups; ++g) {
-//       // Get a block of the vector v
-//       VectorXd v_g = v.segment(g * s, s);
-//       double threshold = group_weights(g) / rho;
-//
-//       // Soft thresholding
-//       VectorXd v_g_soft_thres = (v_g.array() - threshold).max(0) - (-v_g.array() - threshold).max(0);
-//
-//       // Update the corresponding block in beta2
-//       beta2.segment(g * s, s) = v_g_soft_thres;
-//     }
-//
-//     // Steps 3 & 4 and convergence check are unchanged
-//     u1 = u1 + delta.transpose() * beta1 - 1.0;
-//     u2 = u2 + beta1 - beta2;
-//
-//     double r_norm = (beta1 - beta2).norm();
-//     double s_norm = rho * (beta2 - beta2_old).norm();
-//     double eps_pri = std::sqrt(p) * tol_abs + tol_rel * std::max(beta1.norm(), beta2.norm());
-//     double eps_dual = std::sqrt(p) * tol_abs + tol_rel * (rho * u2.norm());
-//
-//     if (r_norm < eps_pri && s_norm < eps_dual) {
-//       break;
-//     }
-//   }
-//   return beta2;
-// }
 
 
 // --- Main LLA Solver for Group SCAD ---
@@ -216,44 +224,251 @@ VectorXd admm_solver(const Eigen::MatrixXd& Sigma,
 Rcpp::List group_lla_admm(const Eigen::MatrixXd& Sigma,
                           const Eigen::VectorXd& delta,
                           int s, // group size
+                          const Eigen::MatrixXd& Theta,
                           double lambda = 0.1,
+                          double R = 1.,
                           double gamma = 3.7,
                           int max_iter_lla = 100,
-                          int max_iter_admm = 1000,
+                          int max_iter_admm = 100,
                           double rho = 1.0,
                           double tol = 1e-5,
                           double tol_abs = 1e-4,
-                          double tol_rel = 1e-2) {
+                          double tol_rel = 1e-3) {
+  int n = Theta.rows();
   int p = Sigma.rows();
   if (p % s != 0) {
     Rcpp::stop("Total number of variables p must be divisible by group size s.");
   }
   int num_groups = p / s;
 
-  VectorXd beta_hat = VectorXd::Constant(p, 1.0 / p);
+  // --- Cholesky decomposition objects for inverse computations ---
+  // Pre-compute M_inv for the beta-update (outer ADMM)
+  MatrixXd M = Sigma + rho * delta * delta.transpose() + rho/n * Theta.transpose() * Theta + rho * MatrixXd::Identity(p, p);
+  auto M_chol = M.llt();
 
+  VectorXd beta_hat = VectorXd::Zero(p);
+  // VectorXd beta_hat = VectorXd::Constant(p, 1.0 / p);
+  
+  std::vector<double> error_conv;
   int iter;
   for (iter = 0; iter < max_iter_lla; ++iter) {
     VectorXd beta_hat_old = beta_hat;
-
+    
+    // Compute group norm
+    VectorXd norm_beta_g(num_groups);
+    for (int g = 0; g < num_groups; ++g) {
+      // Use .segment() to get a view of the g-th group without copying
+      norm_beta_g(g) = (Theta.block(0, g * s, n, s) * beta_hat.segment(g * s, s)).norm() / sqrt(n);
+    }
+    
     // Compute weights using the block-based helper function
-    VectorXd group_weights = scad_derivative_group(beta_hat, s, num_groups,
-                                                   lambda, gamma);
+    VectorXd group_weights = scad_deriv(norm_beta_g, lambda, gamma);
 
     // Solve subproblem using the block-based ADMM solver
-    beta_hat = admm_solver(Sigma, delta, group_weights, s, rho,
-                           max_iter_admm, tol_abs, tol_rel);
-    // beta_hat = admm_solver(Sigma, delta, s, num_groups, group_weights, rho,
-    //                        max_iter_inner, tol_abs, tol_rel);
+    beta_hat = admm_solver(Sigma, delta, group_weights, Theta, s, R,
+                           M_chol,
+                           max_iter_admm, rho, tol_abs, tol_rel);
 
-    if ((beta_hat - beta_hat_old).norm() / (beta_hat_old.norm() + 1e-8) < tol) {
-      // Rcpp::Rcout << "LLA converged at outer iteration " << iter + 1 << std::endl;
+    // Check the convergence
+    double beta_diff = (beta_hat - beta_hat_old).norm() / (beta_hat_old.norm() + 1e-8);
+    error_conv.push_back(beta_diff);
+    if (beta_diff < tol) {
       break;
+    }
+
+    if (iter == max_iter_lla -1){
+      Rcpp::Rcout << "Warning: LLA did not converge within max_iter_lla=" << max_iter_lla << "!" << std::endl;
     }
   }
 
   return Rcpp::List::create(
     Rcpp::Named("beta") = beta_hat,
-    Rcpp::Named("iterations") = iter + 1
+    Rcpp::Named("iterations") = iter + 1,
+    Rcpp::Named("error_conv") = error_conv
   );
 }
+
+
+
+
+// // --- ADMM Algorithm (Warm Start) ---
+// 
+// /**
+//  * @brief Solves the constrained weighted Group Lasso problem using ADMM with block operations.
+//  * @param Sigma The quadratic matrix.
+//  * @param delta The vector from the linear constraint.
+//  * @param s The uniform size of each group.
+//  * @param group_weights The adaptive weights for each group from LLA.
+//  * @param rho The ADMM penalty parameter.
+//  * ... (other params)
+//  * @return The estimated beta vector.
+//  */
+// void admm_solver_warm_start(VectorXd& beta, 
+//                             VectorXd& z, 
+//                             VectorXd& u_2, 
+//                             double& u_1,
+//                             MatrixXd& z_mat,
+//                             MatrixXd& u_2_mat,
+//                             const Eigen::MatrixXd& Sigma,
+//                             const Eigen::VectorXd& delta,
+//                             const Eigen::VectorXd& group_weights,
+//                             const MatrixXd& Theta,
+//                             int s,
+//                             const Eigen::LLT<Eigen::MatrixXd>& M_chol,
+//                             int max_iter = 100,
+//                             double rho = 1.0,
+//                             double tol_abs = 1e-4,
+//                             double tol_rel = 1e-3) {
+//   // --- Initial Checks ---
+//   int n = Theta.rows();
+//   int p = Sigma.rows();
+//   int num_groups = p / s;
+//   
+//   MatrixXd Theta_2 = Theta / std::sqrt(n);
+//   
+//   // --- ADMM Loop ---
+//   for (int t = 0; t < max_iter; ++t) {
+//     VectorXd z_old = z; // Store z from previous iteration for convergence check
+//     
+//     // 1. beta-Update
+//     VectorXd rhs = rho * (Theta_2.transpose() * (z - u_2) + (1.0 - u_1) * delta);
+//     beta = M_chol.solve(rhs);
+//     
+//     // 2. z-Update (with updating u_2_mat)
+//     for (int j = 0; j < num_groups; ++j) {
+//       MatrixXd Theta_2_j = Theta_2.block(0, j * s, n, s) * beta.segment(j * s, s);
+//       VectorXd v_j = Theta_2_j + u_2_mat.col(j);
+//       double norm_v_j = v_j.norm();
+//       double threshold = group_weights(j) / rho;
+//       
+//       double scale = 0.0;
+//       if (norm_v_j > 0) {
+//         scale = std::max(1.0 - threshold / norm_v_j, 0.0);
+//       }
+//       z_mat.col(j) = scale * v_j;
+//       
+//       // Update u_2_mat
+//       u_2_mat.col(j) = u_2_mat.col(j) + Theta_2_j - z_mat.col(j);
+//     }
+//     z = z_mat.rowwise().sum();
+//     
+//     // 3. u_1-Update (scaled dual update)
+//     u_1 = u_1 + delta.transpose() * beta - 1.0;
+//     
+//     // 4. u_2-Update (scaled dual update)
+//     u_2 = u_2_mat.rowwise().sum();
+//     
+//     
+//     // --- Convergence Check ---
+//     MatrixXd A(n + 1, p);
+//     A.row(0) = delta;
+//     A.block(1, 0, n, p) = Theta_2;
+//     MatrixXd B(n + 1, n);
+//     B.row(0).setZero();
+//     B.block(1, 0, n, n) = -MatrixXd::Identity(n, n);
+//     VectorXd c = VectorXd::Zero(n + 1);
+//     c(0) = 1;
+//     
+//     // Primal and dual residuals
+//     double r_primal = (A * beta + B * z - c).norm();
+//     double r_dual = rho * (Theta_2.transpose() * (z - z_old)).norm();
+//     
+//     // Thresholds
+//     double eps_primal = std::sqrt(n + 1.0) * tol_abs + tol_rel * std::max({
+//       (A * beta).norm(), (B * z).norm(), c.norm()
+//     });
+//     double eps_dual = std::sqrt(p) * tol_abs + tol_rel * (Theta_2.transpose() * u_2).norm();
+//     
+//     // Check if ALL three conditions are met
+//     if (r_primal < eps_primal && r_dual < eps_dual) {
+//       // Rcpp::Rcout << "Converged at iteration " << t + 1 << std::endl;
+//       break;
+//     }
+//     
+//     if (t == max_iter -1){
+//       Rcpp::Rcout << "Warning: ADMM did not converge within max_iter=" << max_iter << "!" << std::endl;
+//     }
+//   }
+// }
+// 
+// 
+// 
+// // --- Main LLA Solver for Group SCAD (Warm Start) ---
+// 
+// // [[Rcpp::export]]
+// Rcpp::List group_lla_admm_warm_start(const Eigen::MatrixXd& Sigma,
+//                                      const Eigen::VectorXd& delta,
+//                                      int s, // group size
+//                                      const Eigen::MatrixXd& Theta,
+//                                      double lambda = 0.1,
+//                                      double gamma = 3.7,
+//                                      int max_iter_lla = 100,
+//                                      int max_iter_admm = 100,
+//                                      double rho = 1.0,
+//                                      double tol = 1e-5,
+//                                      double tol_abs = 1e-4,
+//                                      double tol_rel = 1e-3) {
+//   int n = Theta.rows();
+//   int p = Sigma.rows();
+//   if (p % s != 0) {
+//     Rcpp::stop("Total number of variables p must be divisible by group size s.");
+//   }
+//   int num_groups = p / s;
+//   
+//   // --- WARM START: All state variables are declared and initialized here ---
+//   // Initialize variables for admm_solver
+//   VectorXd beta_hat = VectorXd::Zero(p);
+//   // VectorXd beta_hat = VectorXd::Constant(p, 1.0 / p);
+//   VectorXd z = VectorXd::Zero(n);
+//   VectorXd u_2 = VectorXd::Zero(n); // scaled dual variable for n^(-1/2)*Theta*beta - z = 0
+//   double u_1 = 0.0;               // scaled dual variable for delta^T*beta - 1 = 0
+//   MatrixXd z_mat = MatrixXd::Zero(n, p);  // for each covariates; rowSums(z_mat) = z
+//   MatrixXd u_2_mat = MatrixXd::Zero(n, p);  // for each covariates; rowSums(u_2_mat) = u_2
+//   
+//   // --- Cholesky decomposition objects for inverse computations ---
+//   // Pre-compute M_inv for the beta-update (outer ADMM)
+//   MatrixXd M = Sigma + rho/n * Theta.transpose() * Theta + rho * delta * delta.transpose();
+//   // double scale = M.diagonal().mean() * 1e-8; // to avoid singularity
+//   double scale = 1e-8; // to avoid singularity
+//   MatrixXd M_reg = M + scale * MatrixXd::Identity(p, p);
+//   auto M_chol = M_reg.llt();
+//   
+//   
+//   std::vector<double> error_conv;
+//   int iter;
+//   for (iter = 0; iter < max_iter_lla; ++iter) {
+//     VectorXd beta_hat_old = beta_hat;
+//     
+//     // Compute group norm
+//     VectorXd norm_beta_g(num_groups);
+//     for (int g = 0; g < num_groups; ++g) {
+//       // Use .segment() to get a view of the g-th group without copying
+//       norm_beta_g(g) = (Theta.block(0, g * s, n, s) * beta_hat.segment(g * s, s)).norm() / sqrt(n);
+//     }
+//     
+//     // Compute weights using the block-based helper function
+//     VectorXd group_weights = scad_deriv(norm_beta_g, lambda, gamma);
+//     
+//     // Call admm_solver, passing all state variables for a full warm start
+//     admm_solver_warm_start(beta_hat, z, u_2, u_1, z_mat, u_2_mat,
+//                            Sigma, delta, group_weights, Theta, s, M_chol,
+//                            max_iter_admm, rho, tol_abs, tol_rel);
+//     
+//     // Check the convergence
+//     double beta_diff = (beta_hat - beta_hat_old).norm() / (beta_hat_old.norm() + 1e-8);
+//     error_conv.push_back(beta_diff);
+//     if (beta_diff < tol) {
+//       break;
+//     }
+//     
+//     if (iter == max_iter_lla -1){
+//       Rcpp::Rcout << "Warning: LLA did not converge within max_iter_lla=" << max_iter_lla << "!" << std::endl;
+//     }
+//   }
+//   
+//   return Rcpp::List::create(
+//     Rcpp::Named("beta") = beta_hat,
+//     Rcpp::Named("iterations") = iter + 1,
+//     Rcpp::Named("error_conv") = error_conv
+//   );
+// }

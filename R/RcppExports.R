@@ -13,8 +13,12 @@ group_scad_flr_cpp <- function(Y, Theta, p, s, lambda, a = 3.7, max_iter = 100L,
     .Call(`_hdfda_group_scad_flr_cpp`, Y, Theta, p, s, lambda, a, max_iter, tol)
 }
 
-group_lla_admm <- function(Sigma, delta, s, lambda = 0.1, gamma = 3.7, max_iter_lla = 100L, max_iter_admm = 1000L, rho = 1.0, tol = 1e-5, tol_abs = 1e-4, tol_rel = 1e-2) {
-    .Call(`_hdfda_group_lla_admm`, Sigma, delta, s, lambda, gamma, max_iter_lla, max_iter_admm, rho, tol, tol_abs, tol_rel)
+group_lla_admm <- function(Sigma, delta, s, Theta, lambda = 0.1, R = 1., gamma = 3.7, max_iter_lla = 100L, max_iter_admm = 100L, rho = 1.0, tol = 1e-5, tol_abs = 1e-4, tol_rel = 1e-3) {
+    .Call(`_hdfda_group_lla_admm`, Sigma, delta, s, Theta, lambda, R, gamma, max_iter_lla, max_iter_admm, rho, tol, tol_abs, tol_rel)
+}
+
+group_lla_admm_simple <- function(Sigma, delta, s, lambda = 0.1, gamma = 3.7, max_iter_lla = 100L, max_iter_admm = 1000L, rho = 1.0, tol = 1e-5, tol_abs = 1e-4, tol_rel = 1e-2) {
+    .Call(`_hdfda_group_lla_admm_simple`, Sigma, delta, s, lambda, gamma, max_iter_lla, max_iter_admm, rho, tol, tol_abs, tol_rel)
 }
 
 group_lla_nested_admm <- function(Sigma, delta, s, Theta, lambda = 0.1, gamma = 3.7, max_iter_lla = 100L, max_iter_admm = 100L, max_iter_nested_admm = 30L, rho = 1.0, sigma = 1.0, tol = 1e-5, tol_abs = 1e-4, tol_rel = 1e-2) {
