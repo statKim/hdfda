@@ -55,8 +55,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // group_lla_admm
-Rcpp::List group_lla_admm(const Eigen::MatrixXd& Sigma, const Eigen::VectorXd& delta, int s, const Eigen::MatrixXd& Theta, double lambda, double R, double gamma, int max_iter_lla, int max_iter_admm, double rho, double tol, double tol_abs, double tol_rel);
-RcppExport SEXP _hdfda_group_lla_admm(SEXP SigmaSEXP, SEXP deltaSEXP, SEXP sSEXP, SEXP ThetaSEXP, SEXP lambdaSEXP, SEXP RSEXP, SEXP gammaSEXP, SEXP max_iter_llaSEXP, SEXP max_iter_admmSEXP, SEXP rhoSEXP, SEXP tolSEXP, SEXP tol_absSEXP, SEXP tol_relSEXP) {
+Rcpp::List group_lla_admm(const Eigen::MatrixXd& Sigma, const Eigen::VectorXd& delta, int s, const Eigen::MatrixXd& Theta, double lambda, double R, double a, int max_iter_lla, int max_iter_admm, double rho, double tol, double tol_abs, double tol_rel);
+RcppExport SEXP _hdfda_group_lla_admm(SEXP SigmaSEXP, SEXP deltaSEXP, SEXP sSEXP, SEXP ThetaSEXP, SEXP lambdaSEXP, SEXP RSEXP, SEXP aSEXP, SEXP max_iter_llaSEXP, SEXP max_iter_admmSEXP, SEXP rhoSEXP, SEXP tolSEXP, SEXP tol_absSEXP, SEXP tol_relSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -66,14 +66,37 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type Theta(ThetaSEXP);
     Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
     Rcpp::traits::input_parameter< double >::type R(RSEXP);
-    Rcpp::traits::input_parameter< double >::type gamma(gammaSEXP);
+    Rcpp::traits::input_parameter< double >::type a(aSEXP);
     Rcpp::traits::input_parameter< int >::type max_iter_lla(max_iter_llaSEXP);
     Rcpp::traits::input_parameter< int >::type max_iter_admm(max_iter_admmSEXP);
     Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
     Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
     Rcpp::traits::input_parameter< double >::type tol_abs(tol_absSEXP);
     Rcpp::traits::input_parameter< double >::type tol_rel(tol_relSEXP);
-    rcpp_result_gen = Rcpp::wrap(group_lla_admm(Sigma, delta, s, Theta, lambda, R, gamma, max_iter_lla, max_iter_admm, rho, tol, tol_abs, tol_rel));
+    rcpp_result_gen = Rcpp::wrap(group_lla_admm(Sigma, delta, s, Theta, lambda, R, a, max_iter_lla, max_iter_admm, rho, tol, tol_abs, tol_rel));
+    return rcpp_result_gen;
+END_RCPP
+}
+// group_lla_admm_warm_start
+Rcpp::List group_lla_admm_warm_start(const Eigen::MatrixXd& Sigma, const Eigen::VectorXd& delta, int s, const Eigen::MatrixXd& Theta, double lambda, double R, double a, int max_iter_lla, int max_iter_admm, double rho, double tol, double tol_abs, double tol_rel);
+RcppExport SEXP _hdfda_group_lla_admm_warm_start(SEXP SigmaSEXP, SEXP deltaSEXP, SEXP sSEXP, SEXP ThetaSEXP, SEXP lambdaSEXP, SEXP RSEXP, SEXP aSEXP, SEXP max_iter_llaSEXP, SEXP max_iter_admmSEXP, SEXP rhoSEXP, SEXP tolSEXP, SEXP tol_absSEXP, SEXP tol_relSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type Sigma(SigmaSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< int >::type s(sSEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type Theta(ThetaSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< double >::type R(RSEXP);
+    Rcpp::traits::input_parameter< double >::type a(aSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter_lla(max_iter_llaSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter_admm(max_iter_admmSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< double >::type tol_abs(tol_absSEXP);
+    Rcpp::traits::input_parameter< double >::type tol_rel(tol_relSEXP);
+    rcpp_result_gen = Rcpp::wrap(group_lla_admm_warm_start(Sigma, delta, s, Theta, lambda, R, a, max_iter_lla, max_iter_admm, rho, tol, tol_abs, tol_rel));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -164,6 +187,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_hdfda_get_fpc_scores", (DL_FUNC) &_hdfda_get_fpc_scores, 3},
     {"_hdfda_group_scad_flr_cpp", (DL_FUNC) &_hdfda_group_scad_flr_cpp, 8},
     {"_hdfda_group_lla_admm", (DL_FUNC) &_hdfda_group_lla_admm, 13},
+    {"_hdfda_group_lla_admm_warm_start", (DL_FUNC) &_hdfda_group_lla_admm_warm_start, 13},
     {"_hdfda_group_lla_admm_simple", (DL_FUNC) &_hdfda_group_lla_admm_simple, 11},
     {"_hdfda_group_lla_nested_admm", (DL_FUNC) &_hdfda_group_lla_nested_admm, 14},
     {"_hdfda_group_lla_nested_admm_warm_start", (DL_FUNC) &_hdfda_group_lla_nested_admm_warm_start, 14},
