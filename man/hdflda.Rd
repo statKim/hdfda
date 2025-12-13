@@ -2,7 +2,7 @@
 % Please edit documentation in R/hdflda.R
 \name{hdflda}
 \alias{hdflda}
-\title{LDA for high-dimensional functional data}
+\title{Linear Discriminant Analysis for High-Dimensional Functional Data}
 \usage{
 hdflda(
   X,

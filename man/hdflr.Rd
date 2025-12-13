@@ -2,7 +2,7 @@
 % Please edit documentation in R/hdflr.R
 \name{hdflr}
 \alias{hdflr}
-\title{Functional linear regression for high-dimensional functional data with group SCAD penalty}
+\title{Functional Linear Regression for High-Dimensional Functional Data with Group SCAD Penalty}
 \usage{
 hdflr(
   X,

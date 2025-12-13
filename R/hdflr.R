@@ -1,4 +1,4 @@
-#' Functional linear regression for high-dimensional functional data with group SCAD penalty
+#' Functional Linear Regression for High-Dimensional Functional Data with Group SCAD Penalty
 #'
 #' Scalar on function linear regression with group SCAD penalty in high-dimension
 #'

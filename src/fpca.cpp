@@ -1,6 +1,5 @@
-#include <Rcpp.h>
-//[[Rcpp::depends(RcppEigen)]]
 #include <RcppEigen.h>
+//[[Rcpp::depends(RcppEigen)]]
 #include "trapzRcpp.h"
 
 using namespace Rcpp;

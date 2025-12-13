@@ -1,4 +1,4 @@
-#' LDA for high-dimensional functional data
+#' Linear Discriminant Analysis for High-Dimensional Functional Data
 #'
 #' Linear discriminant analysis for high-dimensional functional data
 #'
@@ -139,6 +139,13 @@ hdflda <- function(X, y,
   pred <- as.integer(ifelse(X_coef_c2 %*% nu_hat[idx] > threshold, 1, 0))
   err_train <- mean(y != pred)   # training error
 
+  # Compute ABIC
+  z_hat <- as.numeric(X_coef_c[, idx] %*% nu_hat[idx])
+  rss <- sum((z - z_hat)^2)
+  g_s_lambda <- length(discrim_set_idx)
+  df <- sum(apply(X_coef[, idx], 2, stats::var))
+  abic <- log(rss) + 2*g_s_lambda*n_basis/n + df*log(n)/n
+
   # Output object
   res <- list(
     nu_hat = nu_hat,   # sparse discriminant solution
@@ -156,6 +163,7 @@ hdflda <- function(X, y,
     lambda = lambda,
     groups = groups,
     basis_obj = basis_obj,
+    abic = abic,
     pred_train = pred,
     err_train = err_train
   )
@@ -202,6 +210,201 @@ predict.hdflda <- function(object, newdata, ...) {
 
   return(pred)
 }
+
+
+#' Hyperparameter tuning for `hdflda`
+#'
+#' Select the optimal `n_basis` and `lambda` for `hdflda` using ABIC or K-fold cross-validation
+#' Parallel computing can be used by using the `doParallel` package usages.
+#'
+#' @param X a n-m-p array (p-variate functional data; each functional data consists of n curves observed from m timepoints)
+#' @param y a integer vector containing class label of X (n x 1 vector)
+#' @param tune_method "cv", "abic" or "abic-aic" (default is "cv")
+#' @param grid a vector containing m timepoints
+#' @param basis "bspline" is only supported
+#' @param n_basis_list a vector containing the candidate of `n_basis` (the number of cubic B-spline bases using `n_basis`-2 knots)
+#' @param lambda_list a vector containing the candidate of `lambda` (a penalty parameter for L1-regularization)
+#' @param measure the loss function for the cross-validation. "accuracy" or "cross.entropy" (Default is "accuracy")
+#' @param tol a tolerance rate to define the sparse discriminant set
+#' @param K the nuber of folds for K-fold CV
+#' @param tie_break the tie breaking rule for cross-validation. "sparse"(default) choose the largest `lambda` and the smallest `n_basis`; "random" choose randomly
+#'
+#' @return a `hdflda` object
+#'
+#' @examples
+#' \dontrun{
+#' library(doParallel)
+#' cl <- makePSOCKcluster(detectCores()/2)
+#' registerDoParallel(cl)
+#' fit <- tune.hdflda(X_train, y_train)
+#' stopCluster(cl)
+#' pred <- predict(fit$opt_fit, X_test)
+#' mean(pred != y_test)
+#' }
+#'
+#' @importFrom foreach %dopar% foreach
+#' @export
+tune.hdflda <- function(X,
+                        y,
+                        tune_method = "abic",
+                        grid = NULL,
+                        basis = "bspline",
+                        n_basis_list = NULL,
+                        lambda_list = NULL,
+                        measure = "accuracy",
+                        tol = 1e-7,
+                        K = 5,
+                        tie_break = "sparse") {
+
+  n <- dim(X)[1]   # number of curves
+  m <- dim(X)[2]   # number of timepoints
+  p <- dim(X)[3]   # number of variables
+
+  # Candidates of grid search
+  if (is.null(n_basis_list)) {
+    n_basis_list <- 4:8
+  }
+  if (is.null(lambda_list)) {
+    lambda_list <- seq(1e-3, 0.1, length.out = 10)
+  }
+  cand_tune <- expand.grid(n_basis = n_basis_list,
+                           lambda = lambda_list)
+
+  # Hyperparameter tuning
+  if (tune_method == "cv") {
+    # K-fold cross-validation
+    fold_list <- sample(1:K, n, replace = T)
+    i <- NULL
+    loss_list <- foreach::foreach(i = 1:nrow(cand_tune),
+                                  .packages=c("glmnet","fda","hdfda"),
+                                  # .packages=c("CVXR","fda","hdfda"),
+                                  .combine = c,
+                                  .errorhandling = "pass") %dopar% {
+      loss_i <- rep(NA, K)
+      n_basis <- cand_tune[i, 1]
+      lambda <- cand_tune[i, 2]
+      for (j in 1:K) {
+        # Split data
+        X_train <- X[fold_list != j, , ]
+        X_test <- X[fold_list == j, , ]
+        y_train <- y[fold_list != j]
+        y_test <- y[fold_list == j]
+
+        tryCatch({
+          # Fit hdflda
+          fit_hdflda <- hdflda(X_train, y_train,
+                               grid = grid,
+                               basis = basis,
+                               n_basis = n_basis,
+                               lambda = lambda,
+                               tol = tol)
+
+          # Prediction of validation set
+          pred <- predict(fit_hdflda, X_test)
+
+          # Validation error
+          if (measure == "accuracy") {
+            # Validation misclassification error rate
+            # loss_i[j] <- mean(y_test != pred)
+            loss_i[j] <- sum(y_test != pred)
+          } else if (measure == "cross.entropy") {
+            # # Cross-entropy loss
+            loss_i[j] <- -sum( log(pred[y_test == 1]) ) - sum( log(1-pred[y_test == 0]) )
+          }
+
+        }, error = function(e){
+          # If all zero coefficients error is occured, return all predictions are false.
+          print(e)
+          # It can be resonable to assign n_test as error when we use the cross-entropy or accuracy
+          loss_i[j] <<- length(y_test)
+          # loss_i[j] <<- Inf
+        })
+
+      }
+
+      # loss_i <- mean(loss_i)
+      loss_i <- sum(loss_i) / n
+      return(loss_i)
+    }
+
+    # Optimal hyperparameters
+    cand_tune$cv_error <- loss_list
+    hyperparam_ties <- cand_tune[which(cand_tune$cv_error == min(cand_tune$cv_error)), 1:2, drop=FALSE]
+    if (nrow(hyperparam_ties) > 1) {
+      if (tie_break == "sparse") {
+        # If there exist ties, we choose larger lambda and lower n_basis for the sparse solution
+        hyperparam_ties <- hyperparam_ties[which(hyperparam_ties$lambda == max(hyperparam_ties$lambda)), , drop=FALSE]
+        if (nrow(hyperparam_ties) > 1) {
+          # Ties for n_basis with the same lambda => choose lower n_basis
+          hyperparam_ties <- hyperparam_ties[which.min(hyperparam_ties$n_basis), , drop=FALSE]
+        }
+      } else if (tie_break == "random"){
+        # If there exist ties, we randomly choose the combination.
+        hyperparam_ties <- hyperparam_ties[sample(1:nrow(hyperparam_ties), 1), , drop=FALSE]
+      }
+    }
+    n_basis <- hyperparam_ties[, 1]
+    lambda <- hyperparam_ties[, 2]
+
+    # Fit hdflda using the optimal parameters
+    fit <- hdflda(X,
+                  y,
+                  grid = grid,
+                  basis = basis,
+                  n_basis = n_basis,
+                  lambda = lambda,
+                  tol = tol)
+
+  } else if (tune_method == "abic") {
+    # Fit hdflda for each hyperparemeter candidate
+    i <- NULL
+    fit_list <- foreach::foreach(i = 1:nrow(cand_tune),
+                                 .packages=c("glmnet","fda","hdfda"),
+                                 .errorhandling = "pass") %dopar% {
+       fit_obj <- hdflda(X,
+                         y,
+                         grid = grid,
+                         basis = basis,
+                         n_basis = cand_tune[i, 1],
+                         lambda = cand_tune[i, 2],
+                         tol = tol)
+       return(fit_obj)
+     }
+
+    # Optimal hyperparameters
+    cand_tune$abic <- sapply(fit_list, function(fit_obj){ fit_obj$abic })
+    hyperparam_ties <- cand_tune[which(cand_tune$abic == min(cand_tune$abic)), 1:2, drop=FALSE]
+    if (nrow(hyperparam_ties) > 1) {
+      if (tie_break == "sparse") {
+        # If there exist ties, we choose larger lambda and lower n_basis for the sparse solution
+        hyperparam_ties <- hyperparam_ties[which(hyperparam_ties$lambda == max(hyperparam_ties$lambda)), , drop=FALSE]
+        if (nrow(hyperparam_ties) > 1) {
+          # Ties for n_basis with the same lambda => choose lower n_basis
+          hyperparam_ties <- hyperparam_ties[which.min(hyperparam_ties$n_basis), , drop=FALSE]
+        }
+      } else if (tie_break == "random"){
+        # If there exist ties, we randomly choose the combination.
+        hyperparam_ties <- hyperparam_ties[sample(1:nrow(hyperparam_ties), 1), , drop=FALSE]
+      }
+    }
+    n_basis <- hyperparam_ties[, 1]
+    lambda <- hyperparam_ties[, 2]
+
+    # Choose the optimal object
+    fit <- fit_list[[which(cand_tune$n_basis == n_basis & cand_tune$lambda == lambda)]]
+  }
+
+  # Final object
+  tune_obj <- list(
+    opt_fit = fit,
+    opt_params = c(n_basis = n_basis,
+                   lambda = lambda),
+    tune_error = cand_tune
+  )
+
+  return(tune_obj)
+}
+
 
 #' K-fold cross-validation for `hdflda`
 #'

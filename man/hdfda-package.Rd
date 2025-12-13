@@ -6,7 +6,7 @@
 \alias{hdfda-package}
 \title{hdfda: High-Dimensional Functional Data Analysis}
 \description{
-This is the R-package for high-dimensional functional data analysis. It includes the functional regression and classification with sparsity penalty and the statistical inferences.
+`hdfda` is the R-package for High-Dimensional Functional Data Analysis. It includes the functional linear regression, linear discriminant analysis and two-sample test for high-dimensional functional data.
 }
 \author{
 \strong{Maintainer}: Hyunsung Kim \email{hyunsung1021@gmail.com}

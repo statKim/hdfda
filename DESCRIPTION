@@ -2,17 +2,16 @@ Package: hdfda
 Title: High-Dimensional Functional Data Analysis
 Version: 0.1.0
 Authors@R: 
-    c(person("Hyunsung", "Kim", role = c("aut","cre"), 
-                    email = "hyunsung1021@gmail.com"))
+    c(person("Hyunsung", "Kim", role = c("aut","cre"), email = "hyunsung1021@gmail.com"))
 Maintainer: Hyunsung Kim <hyunsung1021@gmail.com>
-Description: This is the R-package for high-dimensional functional data analysis.
-  It includes the functional regression and classification with sparsity penalty and the statistical inferences.
+Description: `hdfda` is the R-package for High-Dimensional Functional Data Analysis.
+  It includes the functional linear regression, linear discriminant analysis and two-sample test for high-dimensional functional data.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 LinkingTo: 
-    Rcpp,
+    Rcpp, 
     RcppEigen
 Imports: 
     fda,
@@ -21,4 +20,4 @@ Imports:
     pracma,
     Rcpp,
     RcppEigen,
-    sparsegl
+    doParallel
