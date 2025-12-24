@@ -45,7 +45,7 @@ tune.opt_proj_dir(
 \item{...}{additional parameters for \code{opt_proj_dir}}
 }
 \value{
-a \code{opt_proj_dir} object
+a \code{tune.opt_proj_dir} object
 }
 \description{
 Tuning parameter (lambda, n_basis) selection for \code{opt_proj_dir}
@@ -56,5 +56,5 @@ Default tuning method is K-fold cross-validation with a measure classification e
 Parallel computing can be used by using the \code{doParallel} package usages.
 }
 \references{
-Kim, H. and Park, J. (2025+). Two-sample Projection Test for High-Dimensional Functional Data, Submitted.
+Kim, H. and Park, J. (2026+). Two-sample Projection Test for High-Dimensional Functional Data, Submitted.
 }

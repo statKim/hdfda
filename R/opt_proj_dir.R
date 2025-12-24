@@ -16,7 +16,7 @@
 #'
 #' @return a `opt_proj_dir` object
 #'
-#' @references Kim, H. and Park, J. (2025+). Two-sample Projection Test for High-Dimensional Functional Data, Submitted.
+#' @references Kim, H. and Park, J. (2026+). Two-sample Projection Test for High-Dimensional Functional Data, Submitted.
 #'
 #' @importFrom stats cov
 #' @export
@@ -214,9 +214,9 @@ predict.opt_proj_dir <- function(object, newdata, ...) {
 #' @param tie_break the tie breaking rule for cross-validation. "sparse"(default) choose the largest `lambda` and the smallest `n_basis`; "random" choose randomly
 #' @param ... additional parameters for `opt_proj_dir`
 #'
-#' @return a `opt_proj_dir` object
+#' @return a `tune.opt_proj_dir` object
 #'
-#' @references Kim, H. and Park, J. (2025+). Two-sample Projection Test for High-Dimensional Functional Data, Submitted.
+#' @references Kim, H. and Park, J. (2026+). Two-sample Projection Test for High-Dimensional Functional Data, Submitted.
 #'
 #' @importFrom foreach %dopar% foreach
 #' @importFrom stats median t.test
@@ -459,6 +459,7 @@ tune.opt_proj_dir <- function(X,
                    lambda = lambda),
     tune_error = cand_tune
   )
+  class(tune_obj) <- "tune.opt_proj_dir"
 
   return(tune_obj)
 }

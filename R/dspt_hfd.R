@@ -1,6 +1,6 @@
-#' Two-sample Projection Test for High-Dimensional Functional Data
+#' Data-Splitting Projection Test for High-Dimensional Functional Data
 #'
-#' The data-splitting projection test onto the optimal projection direction for high-dimensional functional data
+#' Two-sample test for high-dimensional functional means via data-splitting projection test onto the optimal projection direction
 #' The optimal projection direction is corresponding to the high-dimensional functional linear discriminant direction under the sparsity assumption.
 #' The optimal projection direction is estimated by the block coordinate descent (BCD) algorithm with local quadratic approximation (LQA).
 #'
@@ -15,22 +15,30 @@
 #' @param n_cores a number cores for parallel computing
 #' @param ... additional parameters or `opt_proj_dir` ("scad") or `hdflda` ("l1")
 #'
-#' @return a `htest` object
+#' @return a list with class `htest` containing the following components:
+#' \item{statistic}{the value of the t-statistic from the projected samples}
+#' \item{p.value}{the p-value for the test}
+#' \item{method}{a character string indicating what type of t-test was performed}
+#' \item{data.name}{a character string giving the name(s) of the data}
+#' \item{obj_test}{the object from `t.test()`}
+#' \item{obj_proj}{the `opt_proj_dir` object}
+#' \item{obj_proj_tune}{the `tune.opt_proj_dir` object if `tuning = TRUE`}
 #'
-#' @references Kim, H. and Park, J. (2025+). Two-sample Projection Test for High-Dimensional Functional Data, Submitted.
+#'
+#' @references Kim, H. and Park, J. (2026+). Two-sample Projection Test for High-Dimensional Functional Data, Submitted.
 #'
 #' @importFrom stats pnorm
 #'
 #' @export
-hdfd_proj_test <- function(X1,
-                           X2,
-                           penalty = "scad",
-                           split_prop = 0.5,
-                           tuning = FALSE,
-                           tune_method = "cv",
-                           n_basis = 4,
-                           lambda = 0.1,
-                           n_cores = 1, ...) {
+dspt_hfd <- function(X1,
+                     X2,
+                     penalty = "scad",
+                     split_prop = 0.5,
+                     tuning = FALSE,
+                     tune_method = "cv",
+                     n_basis = 4,
+                     lambda = 0.1,
+                     n_cores = 1, ...) {
   n1 <- dim(X1)[1]
   n2 <- dim(X2)[1]
   m <- dim(X1)[2]
@@ -112,7 +120,7 @@ hdfd_proj_test <- function(X1,
   out <- list(
     statistic = test_stat,
     p.value = p_value,
-    method = "Two-Sample Projection Test for High-Dimensional Functional Means",
+    method = "Data-Splitting Projection Test for High-Dimensional Functional Means",
     data.name = data_name,
     obj_test = obj_test,
     obj_proj = obj_proj

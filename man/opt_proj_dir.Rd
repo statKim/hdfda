@@ -46,5 +46,5 @@ The optimal projection direction is corresponding to the high-dimensional functi
 The optimal projection direction is estimated by the block coordinate descent (BCD) algorithm with local quadratic approximation (LQA).
 }
 \references{
-Kim, H. and Park, J. (2025+). Two-sample Projection Test for High-Dimensional Functional Data, Submitted.
+Kim, H. and Park, J. (2026+). Two-sample Projection Test for High-Dimensional Functional Data, Submitted.
 }
