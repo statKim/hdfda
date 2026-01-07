@@ -250,10 +250,11 @@ tune.opt_proj_dir <- function(X,
   # Hyperparameter tuning
   if (tune_method == "cv") {
     # K-fold cross-validation
-    fold_list <- rep(NA, n)
-    fold_list[y == 0] <- sample(1:sum(y == 0) %% K + 1)
-    fold_list[y == 1] <- sample(1:sum(y == 1) %% K + 1)
-    # fold_list <- sample(1:K, n, replace = T)
+    fold_list <- sample(1:K, n, replace = T)
+    # fold_list <- rep(NA, n)
+    # fold_list[y == 0] <- sample(1:sum(y == 0) %% K + 1)
+    # fold_list[y == 1] <- sample(1:sum(y == 1) %% K + 1)
+
     i <- NULL
     loss_list <- foreach::foreach(i = 1:nrow(cand_tune),
                                   .packages=c("fda","hdfda"),
