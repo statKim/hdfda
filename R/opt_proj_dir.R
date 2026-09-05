@@ -13,6 +13,7 @@
 #' @param a a parameter for SCAD penalty
 #' @param max_iter a maximum iteration number of the LQA algorithm
 #' @param sweeps_bcd a number of sweeps in BCD algorithm
+#' @param ... additional parameters for `basis_mfd`
 #'
 #' @return a `opt_proj_dir` object
 #'
@@ -29,7 +30,7 @@ opt_proj_dir <- function(X,
                          lambda = 0.1,
                          a = 3.7,
                          max_iter = 1000,
-                         sweeps_bcd = 2) {
+                         sweeps_bcd = 2, ...) {
   n <- dim(X)[1]   # number of curves
   m <- dim(X)[2]   # number of timepoints
   p <- dim(X)[3]   # number of variables
@@ -39,7 +40,8 @@ opt_proj_dir <- function(X,
                          grid = grid,
                          basis = basis,
                          n_basis = n_basis,
-                         gram = TRUE)
+                         gram = TRUE,
+                         ...)
   X_coef <- basis_obj$X_coef
 
   # Observed grid points
@@ -209,6 +211,7 @@ predict.opt_proj_dir <- function(object, newdata, ...) {
 #' @param basis Default is "bspline" ("fpca" is possible but takes huge times if p is high)
 #' @param n_basis_list a vector containing the candidate of `n_basis` (the number of cubic B-spline bases using `n_basis`-2 knots)
 #' @param lambda_list a vector containing the candidate of `lambda` (a penalty parameter for L1-regularization)
+#' @param n_cores a number cores for parallel computing
 #' @param measure the measure for the K-fold cross-validation. "accuracy", "cross.entropy", "mahalanobis" (Default is "accuracy")
 #' @param K the number of folds for K-fold CV
 #' @param tie_break the tie breaking rule for cross-validation. "sparse"(default) choose the largest `lambda` and the smallest `n_basis`; "random" choose randomly
@@ -229,6 +232,7 @@ tune.opt_proj_dir <- function(X,
                               basis = "bspline",
                               n_basis_list = NULL,
                               lambda_list = NULL,
+                              n_cores = 1,
                               measure = "accuracy",
                               K = 5,
                               tie_break = "sparse",
@@ -246,6 +250,33 @@ tune.opt_proj_dir <- function(X,
   }
   cand_tune <- expand.grid(n_basis = n_basis_list,
                            lambda = lambda_list)
+
+  # # If we use `fpca_ps`, we select n_basis by FVE
+  # if (basis == "fpca_ps") {
+  #   n_cores_basis <- n_cores
+  #   n_cores <- 1
+  #
+  #   # # Find n_basis from overall data
+  #   # basis_obj <- basis_mfd(X,
+  #   #                        grid = grid,
+  #   #                        basis = basis,
+  #   #                        # n_basis = n_basis,
+  #   #                        gram = TRUE,
+  #   #                        n_cores = n_cores_basis,
+  #   #                        ...)
+  #   # n_basis_list <- basis_obj$n_basis
+  #   #
+  #   # cand_tune <- expand.grid(n_basis = n_basis_list,
+  #   #                          lambda = lambda_list)
+  # } else {
+  #   n_cores_basis <- 1
+  # }
+  n_cores_basis <- 1
+
+  # Parallel computing
+  # cl <- parallel::makePSOCKcluster(n_cores)
+  # doParallel::registerDoParallel(cl)
+  doParallel::registerDoParallel(cores = n_cores)
 
   # Hyperparameter tuning
   if (tune_method == "cv") {
@@ -278,7 +309,9 @@ tune.opt_proj_dir <- function(X,
                                 penalty = penalty,
                                 basis = basis,
                                 n_basis = n_basis,
-                                lambda = lambda, ...)
+                                lambda = lambda,
+                                n_cores = n_cores_basis,
+                                ...)
 
         # Validation error
         if (measure == "accuracy") {
@@ -452,6 +485,8 @@ tune.opt_proj_dir <- function(X,
     # Choose the optimal object
     fit <- fit_list[[which(n_basis_list == n_basis)]]
   }
+  # parallel::stopCluster(cl)
+  foreach::registerDoSEQ()
 
   # Final object
   tune_obj <- list(
@@ -464,4 +499,3 @@ tune.opt_proj_dir <- function(X,
 
   return(tune_obj)
 }
-

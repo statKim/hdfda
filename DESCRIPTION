@@ -6,7 +6,7 @@ Authors@R:
 Maintainer: Hyunsung Kim <hyunsung1021@gmail.com>
 Description: `hdfda` is the R-package for High-Dimensional Functional Data Analysis.
   It includes the functional linear regression, linear discriminant analysis and two-sample test for high-dimensional functional data.
-License: MIT + file LICENSE
+License: GPL-3 + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2

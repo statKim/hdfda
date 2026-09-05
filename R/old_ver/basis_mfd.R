@@ -1,32 +1,14 @@
-# x: m x 1 vector or m x p matrix
-get_norms_fd <- function(x) {
-  if (is.vector(x)) {
-    return( sqrt(mean(x^2)) )
-  } else {
-    return( sqrt(colMeans(x^2)) )
-  }
-}
-
-# X: m x p matrix or m x p x K array
-get_norms_mfd <- function(X) {
-  if (length(dim(X)) == 2) {
-    return( sqrt(sum( get_norms_fd(X)^2 )) )
-  } else if (length(dim(X)) == 3) {
-    return( sqrt(apply(X^2, 3, sum) / dim(X)[1]) )
-  }
-}
-
 #' Make basis expansion matrix from multivariate functional data
 #'
 #' Make basis expansion matrix from multivariate functional data
 #'
 #' @param X a n-m-p array (p-variate functional data; each functional data consists of n curves observed from m timepoints)
 #' @param grid a vector containing m timepoints
-#' @param basis a choice of the basis. "bspline" (B-spline), "ufpca" (uFPCA) and "fpca_ps" (FPCA under partial separability) are supported.
+#' @param basis a choice of the basis. "fpca" (FPCA) or "bspline" (B-spline) is supported.
+#' @param FVE Fraction of variance explained (Default is 0.90)
+#' @param K the number of FPCs (Default is selected by FVE)
 #' @param n_basis the number of basis for the B-spline basis expansion
 #' @param n_order the order of B-spline basis functions. Default is 4 (cubic B-spline)
-#' @param FVE Fraction of variance explained (Default is 0.90)
-#' @param select_K the number of FPCs. "FVE" and "n_basis" are supported. (Default is selected by "n_basis")
 #' @param gram If TRUE, Gram-Schmidt orthogonalization is performed for the estimated basis coefficients. (Default is TRUE)
 #'
 #' @return a `basis_mfd` object
@@ -34,11 +16,11 @@ get_norms_mfd <- function(X) {
 #' @export
 basis_mfd <- function(X,
                       grid = NULL,
-                      basis = "bspline",
+                      basis = "fpca",
+                      FVE = 0.90,
+                      K = NULL,
                       n_basis = 4,
                       n_order = 4,
-                      FVE = 0.90,
-                      select_K = "n_basis",
                       gram = TRUE) {
   n <- dim(X)[1]   # number of curves
   m <- dim(X)[2]   # number of timepoints
@@ -95,9 +77,6 @@ basis_mfd <- function(X,
       # M_J <- t(M) %*% An
       phi <- fda::eval.basis(grid, basis_ftn)
       phi <- pracma::gramSchmidt(phi)$Q
-
-      # Normalize such that the norm = 1
-      phi <- sweep(phi, 2, get_norms_fd(phi), "/")
       M_J <- phi
     } else {
       # Non-orthogonal B-spline basis
@@ -112,25 +91,21 @@ basis_mfd <- function(X,
     X_names <- c()
     for (i in 1:d) {
       col_idx <- ((i-1)*n_basis+1):(i*n_basis)
-      X_coef[, col_idx] <- (X[, , i] %*% M_J) / m   # B-spline basis coefficients
+      X_coef[, col_idx] <- X[, , i] %*% M_J   # B-spline basis coefficients
       X_names[col_idx] <- paste0("x", i, ".bspl.", 1:n_basis)
     }
     colnames(X_coef) <- X_names
 
-    # Group indicators for grouped variables
+    # Group index for group lasso
     groups <- rep(1:d, each = n_basis)
-  } else if (basis == "ufpca") {
-    if (select_K == "FVE") {
-      n_basis <- NULL
-    }
-
+  } else if (basis == "fpca") {
     # FPC scores for each functional covariate
-    n_basis_list <- rep(0, d)
+    num_pc <- rep(0, d)
     uFPCA.obj.list <- list()   # a list of FPCA objects
     for (i in 1:d) {
-      uFPCA.obj <- uFPCA(X[, , i], grid = grid, FVE = FVE, K = n_basis)
+      uFPCA.obj <- uFPCA(X[, , i], grid = grid, FVE = FVE, K = K)
       uFPCA.obj.list[[i]] <- uFPCA.obj
-      n_basis_list[i] <- uFPCA.obj$K
+      num_pc[i] <- uFPCA.obj$K
       if (i == 1) {
         X_coef <- uFPCA.obj$fpc.score
       } else {
@@ -138,40 +113,12 @@ basis_mfd <- function(X,
                         uFPCA.obj$fpc.score)
       }
     }
-    X_names <- lapply(1:d, function(i){ paste0("x", i, ".fpc.", 1:n_basis_list[i]) })
+    X_names <- lapply(1:d, function(i){ paste0("x", i, ".fpc.", 1:num_pc[i]) })
     X_names <- unlist(X_names)
     colnames(X_coef) <- X_names
 
-    # Group indicators for grouped variables
-    groups <- rep(1:d, times = n_basis_list)
-  # } else if (basis == "fpca_ps") {
-  #   if (select_K == "FVE") {
-  #     n_basis <- NULL
-  #   }
-  #   # else if (select_K == "n_basis") {
-  #   #   FVE <- NULL
-  #   # }
-  #
-  #   # FPCA under partial separability
-  #   obj_fpca <- hdFPCA(X,
-  #                      grid = grid,
-  #                      cov_type = "ps",
-  #                      fve = FVE,
-  #                      K = n_basis, ...)
-  #   n_basis <- obj_fpca$K
-  #
-  #   # FPC scores for each functional covariate
-  #   X_coef <- matrix(NA, n, n_basis*d)
-  #   X_names <- c()
-  #   for (i in 1:d) {
-  #     col_idx <- ((i-1)*n_basis+1):(i*n_basis)
-  #     X_coef[, col_idx] <- obj_fpca$fpc_scores[, i, ]   # FPC scores
-  #     X_names[col_idx] <- paste0("x", i, ".fpc.", 1:n_basis)
-  #   }
-  #   colnames(X_coef) <- X_names
-  #
-  #   # Group indicators for grouped variables
-  #   groups <- rep(1:d, each = n_basis)
+    # Group index for group lasso
+    groups <- rep(1:d, times = num_pc)
   }
 
 
@@ -186,24 +133,15 @@ basis_mfd <- function(X,
       X_coef = X_coef,
       groups = groups
     )
-  } else if (basis == "ufpca") {
+  } else if (basis == "fpca") {
     res <- list(
       basis = basis,
       uFPCA.obj = uFPCA.obj.list,
       grid = grid,
-      n_basis = n_basis,
+      num_pc = num_pc,
       X_coef = X_coef,
       groups = groups
     )
-  # } else if (basis == "fpca_ps") {
-  #   res <- list(
-  #     basis = basis,
-  #     obj_fpca = obj_fpca,
-  #     grid = grid,
-  #     n_basis = n_basis,
-  #     X_coef = X_coef,
-  #     groups = groups
-  #   )
   }
 
   class(res) <- "basis_mfd"
@@ -229,10 +167,10 @@ predict.basis_mfd <- function(object, newdata, ...) {
   d <- dim(newdata)[3]   # number of variables
 
   grid <- object$grid
-  n_basis <- object$n_basis
 
   if (object$basis == "bspline") {
     # B-spline coefficients for each functional covariate
+    n_basis <- object$n_basis
     basis_ftn <- object$basis_ftn
     if (isTRUE(object$gram)) {
       # Make orthogonal B-spline basis
@@ -253,10 +191,9 @@ predict.basis_mfd <- function(object, newdata, ...) {
     X_coef <- matrix(NA, n, n_basis*d)
     for (i in 1:d) {
       col_idx <- ((i-1)*n_basis+1):(i*n_basis)
-      X_coef[, col_idx] <- (newdata[, , i] %*% M_J) / m  # B-spline basis coefficients
+      X_coef[, col_idx] <- newdata[, , i] %*% M_J   # B-spline basis coefficients
     }
-
-  } else if (object$basis == "ufpca") {
+  } else if (object$basis == "fpca") {
     # FPC scores for each functional covariate
     for (i in 1:d) {
       fpc.score <- predict(object$uFPCA.object[[i]], newdata[, , i])
@@ -267,16 +204,6 @@ predict.basis_mfd <- function(object, newdata, ...) {
         X_coef <- cbind(X_coef, fpc.score)
       }
     }
-
-  } else if (object$basis == "fpca_ps") {
-    # FPC scores under partial separability
-    fpc_scores_new <- predict(object$obj_fpca, newdata)$fpc_scores
-    X_coef <- matrix(NA, n, n_basis*d)
-    for (i in 1:d) {
-      col_idx <- ((i-1)*n_basis+1):(i*n_basis)
-      X_coef[, col_idx] <- fpc_scores_new[, i, ]   # FPC scores
-    }
-
   }
   colnames(X_coef) <- colnames(object$X_coef)
 

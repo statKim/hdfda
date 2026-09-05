@@ -14,7 +14,8 @@ opt_proj_dir(
   lambda = 0.1,
   a = 3.7,
   max_iter = 1000,
-  sweeps_bcd = 2
+  sweeps_bcd = 2,
+  ...
 )
 }
 \arguments{
@@ -37,6 +38,8 @@ opt_proj_dir(
 \item{max_iter}{a maximum iteration number of the LQA algorithm}
 
 \item{sweeps_bcd}{a number of sweeps in BCD algorithm}
+
+\item{...}{additional parameters for \code{basis_mfd}}
 }
 \value{
 a \code{opt_proj_dir} object

@@ -7,11 +7,11 @@
 basis_mfd(
   X,
   grid = NULL,
-  basis = "fpca",
-  FVE = 0.9,
-  K = NULL,
+  basis = "bspline",
   n_basis = 4,
   n_order = 4,
+  FVE = 0.9,
+  select_K = "n_basis",
   gram = TRUE
 )
 }
@@ -20,15 +20,15 @@ basis_mfd(
 
 \item{grid}{a vector containing m timepoints}
 
-\item{basis}{a choice of the basis. "fpca" (FPCA) or "bspline" (B-spline) is supported.}
-
-\item{FVE}{Fraction of variance explained (Default is 0.90)}
-
-\item{K}{the number of FPCs (Default is selected by FVE)}
+\item{basis}{a choice of the basis. "bspline" (B-spline), "ufpca" (uFPCA) and "fpca_ps" (FPCA under partial separability) are supported.}
 
 \item{n_basis}{the number of basis for the B-spline basis expansion}
 
 \item{n_order}{the order of B-spline basis functions. Default is 4 (cubic B-spline)}
+
+\item{FVE}{Fraction of variance explained (Default is 0.90)}
+
+\item{select_K}{the number of FPCs. "FVE" and "n_basis" are supported. (Default is selected by "n_basis")}
 
 \item{gram}{If TRUE, Gram-Schmidt orthogonalization is performed for the estimated basis coefficients. (Default is TRUE)}
 }

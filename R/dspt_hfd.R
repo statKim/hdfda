@@ -79,15 +79,23 @@ dspt_hfd <- function(X1,
   } else if (penalty == "scad") {
     # LSE-LDA + group SCAD penalty
     if (isTRUE(tuning)) {
+      # # Parallel computing
+      # cl <- parallel::makePSOCKcluster(n_cores)
+      # doParallel::registerDoParallel(cl)
+      # obj_proj_tune <- tune.opt_proj_dir(X_train,
+      #                                    y_train,
+      #                                    tune_method = tune_method,
+      #                                    ...)
+      # obj_proj <- obj_proj_tune$opt_fit
+      # parallel::stopCluster(cl)
+
       # Parallel computing
-      cl <- parallel::makePSOCKcluster(n_cores)
-      doParallel::registerDoParallel(cl)
       obj_proj_tune <- tune.opt_proj_dir(X_train,
                                          y_train,
                                          tune_method = tune_method,
+                                         n_cores = n_cores,
                                          ...)
       obj_proj <- obj_proj_tune$opt_fit
-      parallel::stopCluster(cl)
     } else {
       obj_proj <- opt_proj_dir(X_train,
                                y_train,

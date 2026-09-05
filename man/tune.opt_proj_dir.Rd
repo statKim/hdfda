@@ -13,6 +13,7 @@ tune.opt_proj_dir(
   basis = "bspline",
   n_basis_list = NULL,
   lambda_list = NULL,
+  n_cores = 1,
   measure = "accuracy",
   K = 5,
   tie_break = "sparse",
@@ -35,6 +36,8 @@ tune.opt_proj_dir(
 \item{n_basis_list}{a vector containing the candidate of \code{n_basis} (the number of cubic B-spline bases using \code{n_basis}-2 knots)}
 
 \item{lambda_list}{a vector containing the candidate of \code{lambda} (a penalty parameter for L1-regularization)}
+
+\item{n_cores}{a number cores for parallel computing}
 
 \item{measure}{the measure for the K-fold cross-validation. "accuracy", "cross.entropy", "mahalanobis" (Default is "accuracy")}
 
