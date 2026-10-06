@@ -271,7 +271,7 @@ tune.opt_proj_dir <- function(X,
   # } else {
   #   n_cores_basis <- 1
   # }
-  n_cores_basis <- 1
+  # n_cores_basis <- 1
 
   # Parallel computing
   # cl <- parallel::makePSOCKcluster(n_cores)
@@ -310,7 +310,6 @@ tune.opt_proj_dir <- function(X,
                                 basis = basis,
                                 n_basis = n_basis,
                                 lambda = lambda,
-                                n_cores = n_cores_basis,
                                 ...)
 
         # Validation error
