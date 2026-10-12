@@ -1,4 +1,6 @@
-# x: m x 1 vector or m x p matrix
+#' Get the norm of univaraite functional data
+#'
+#' @param x a m x 1 vector or m x p matrix
 get_norms_fd <- function(x) {
   if (is.vector(x)) {
     return( sqrt(mean(x^2)) )
@@ -7,7 +9,9 @@ get_norms_fd <- function(x) {
   }
 }
 
-# X: m x p matrix or m x p x K array
+#' Get the norm of multivariate functional data
+#'
+#' @param X a m x p matrix or m x p x K array
 get_norms_mfd <- function(X) {
   if (length(dim(X)) == 2) {
     return( sqrt(sum( get_norms_fd(X)^2 )) )
